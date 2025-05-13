@@ -84,4 +84,4 @@ El entorno general incluye el modelado del galpón donde se encuentran la impres
 
 1. Cloná este repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/tp1-compu-grafica.git
+   git clone https://github.com/jicanta/Galpon-3D
