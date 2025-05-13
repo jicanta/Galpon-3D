@@ -1,4 +1,4 @@
-# TP1 - Simulación 3D Interactiva: Autoelevador, Impresora 3D y Estantería
+# TP1 - Simulación 3D interactiva: autoelevador, impresora 3D y estantería
 
 ## 🎯 Objetivo
 
