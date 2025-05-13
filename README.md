@@ -16,7 +16,7 @@ El objetivo de este trabajo práctico es desarrollar una escena 3D interactiva q
 
 ### Movimiento del auto elevador:
 - `W` / `S`: avanzar / retroceder
-- `A` / `D`: girar sobre su eje
+- `A` / `D`: girar sobre su eje a la izquierda / derecha
 - `Q` / `E`: subir / bajar la pala
 - `G`: tomar o dejar un objeto (en la impresora o en la estantería)
 
