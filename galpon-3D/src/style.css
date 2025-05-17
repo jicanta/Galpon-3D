@@ -1,0 +1,76 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #1a1a1a;
+  width: 100vw;
+  height: 100vh;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+#gui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+}
+
+/* Customize dat.gui */
+.dg.main {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-shadow: none;
+}
+
+.dg.main .close-button {
+  background-color: #2196F3;
+}
+
+.dg.main .close-button:hover {
+  background-color: #1976D2;
+}
+
+.dg li:not(.folder) {
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid #2196F3;
+}
+
+.dg li.title {
+  background: #2196F3 !important;
+}
+
+.dg .c input[type=text] {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dg .c .slider {
+  background: #2196F3;
+}
+
+.dg .c .slider:hover {
+  background: #1976D2;
+}
+
+.dg .property-name {
+  color: #fff;
+}
+
+.dg .c .slider-fg {
+  background: #64B5F6;
+}
+
+.dg .cr.function:hover,
+.dg .cr.boolean:hover {
+  background: #1976D2;
+}
