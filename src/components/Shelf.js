@@ -94,9 +94,79 @@ export class Shelf {
 
   /* ═════ API pública ═════ */
 
-  addObject (obj) {
-    const slot = this.freeSlots.find(s => !s.occupied);
-    if (!slot) return false;
+  findClosestSlot(tipPosition) {
+    let closestSlot = null;
+    let minDistance = Infinity;
+    
+    for (const slot of this.freeSlots) {
+      const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
+      const y = this.offsetY + slot.level * this.levelSpan + this.vGap;
+      const slotPos = new THREE.Vector3(x, y, 0);
+      slotPos.applyMatrix4(this.root.matrixWorld);
+      
+      const distance = tipPosition.distanceTo(slotPos);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestSlot = slot;
+      }
+    }
+    
+    return { slot: closestSlot, distance: minDistance };
+  }
+
+  findClosestObject(tipPosition) {
+    let closestObject = null;
+    let minDistance = Infinity;
+    
+    // Check all children of the shelf
+    for (const child of this.root.children) {
+      // Skip non-mesh objects, highlight, and structural elements
+      if (!(child instanceof THREE.Mesh) || 
+          child === this.highlight || 
+          child.material.color.getHex() === 0xa0e8ff || // Skip planks (light blue)
+          child.material.color.getHex() === 0x8a9756) { // Skip metal beams (greenish)
+        continue;
+      }
+      
+      const objPos = new THREE.Vector3();
+      child.getWorldPosition(objPos);
+      
+      const distance = tipPosition.distanceTo(objPos);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestObject = child;
+      }
+    }
+    
+    return { object: closestObject, distance: minDistance };
+  }
+
+  removeObject(obj) {
+    // Find the slot that contains this object
+    const objPos = new THREE.Vector3();
+    obj.getWorldPosition(objPos);
+    objPos.applyMatrix4(this.root.matrixWorld.invert());
+    
+    for (const slot of this.freeSlots) {
+      if (slot.occupied) {
+        const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
+        const y = this.offsetY + slot.level * this.levelSpan + this.vGap;
+        const slotPos = new THREE.Vector3(x, y, 0);
+        
+        if (objPos.distanceTo(slotPos) < 0.5) { // If object is close to this slot
+          slot.occupied = false;
+          this.root.remove(obj);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  addObject(obj, tipPosition) {
+    const { slot, distance } = this.findClosestSlot(tipPosition);
+    
+    if (!slot || distance > 5 || slot.occupied) return false;
 
     const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
     const yBase = this.offsetY + slot.level * this.levelSpan + this.vGap;
@@ -110,15 +180,50 @@ export class Shelf {
     return true;
   }
 
-  showHighlight () {
-    const slot = this.freeSlots.find(s => !s.occupied);
-    if (!slot) { this.highlight.visible = false; return; }
+  showHighlight(tipPosition, isPicking = false) {
+    if (isPicking) {
+      // When picking up, highlight the slot with the closest object
+      const { object, distance } = this.findClosestObject(tipPosition);
+      if (!object || distance > 5) {
+        this.highlight.visible = false;
+        return;
+      }
 
-    const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
-    const yMid = this.offsetY + slot.level * this.levelSpan + this.levelSpan / 2;
-    this.highlight.position.set(x, yMid, 0);
-    this.highlight.visible = true;
+      // Find which slot contains this object
+      const objPos = new THREE.Vector3();
+      object.getWorldPosition(objPos);
+      objPos.applyMatrix4(this.root.matrixWorld.invert());
+      
+      for (const slot of this.freeSlots) {
+        if (slot.occupied) {
+          const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
+          const y = this.offsetY + slot.level * this.levelSpan + this.vGap;
+          const slotPos = new THREE.Vector3(x, y, 0);
+          
+          if (objPos.distanceTo(slotPos) < 0.5) {
+            const yMid = this.offsetY + slot.level * this.levelSpan + this.levelSpan / 2;
+            this.highlight.position.set(x, yMid, 0);
+            this.highlight.visible = true;
+            return;
+          }
+        }
+      }
+      this.highlight.visible = false;
+    } else {
+      // When placing, highlight the closest empty slot
+      const { slot, distance } = this.findClosestSlot(tipPosition);
+      if (!slot || distance > 5 || slot.occupied) {
+        this.highlight.visible = false;
+        return;
+      }
+
+      const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
+      const yMid = this.offsetY + slot.level * this.levelSpan + this.levelSpan / 2;
+      this.highlight.position.set(x, yMid, 0);
+      this.highlight.visible = true;
+    }
   }
+
   hideHighlight () { this.highlight.visible = false; }
 
   center () {

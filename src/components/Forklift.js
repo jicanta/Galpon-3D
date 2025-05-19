@@ -47,7 +47,7 @@ export class Forklift {
     const fenderGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.45, 16, 1, true, 0, Math.PI)
       .rotateZ(Math.PI / 2);
     const fenderMat = new THREE.MeshStandardMaterial({ color: yellow, side: THREE.DoubleSide });
-    const fY = this.wheelR + 0.05;
+    const fY = this.wheelR - 0.3;  // Reducido de 0.05 a 0.02 (2cm sobre la rueda)
     [-1, 1].forEach(s => {
       [ 1.2, -1.2 ].forEach(z => {
         const f = new THREE.Mesh(fenderGeo, fenderMat);
@@ -182,28 +182,58 @@ export class Forklift {
       this.root.rotation.y = this.heading;
     }
 
-    /* avance / retroceso con AABB del chasis */
+    /* avance / retroceso con colisiones mejoradas */
     const mv = (input.key('KeyW') ? 1 : 0) - (input.key('KeyS') ? 1 : 0);
     if (mv) {
-      const v   = this.speed * mv * dt;
-      const nxt = this.root.position.clone()
-        .add(new THREE.Vector3(Math.sin(this.heading) * v, 0,
-                               Math.cos(this.heading) * v));
-
+      const v = this.speed * mv * dt;
       const s = Math.sin(this.heading), c = Math.cos(this.heading);
-
+      
+      // Calcular el vector de movimiento
+      const moveVector = new THREE.Vector3(s * v, 0, c * v);
+      
+      // Intentar movimiento con deslizamiento mejorado
+      const newPos = this.root.position.clone();
       const hx = Math.abs(c) * this.bodyHalfW + Math.abs(s) * this.bodyHalfD - this.marginX;
       const hz = Math.abs(s) * this.bodyHalfW + Math.abs(c) * this.bodyHalfD - this.marginZ;
 
-      let hit = false;
-      for (const box of this._obsAABB ?? []) {
-        if (nxt.x + hx < box.min.x || nxt.x - hx > box.max.x) continue;
-        if (nxt.z + hz < box.min.z || nxt.z - hz > box.max.z) continue;
-        hit = true; break;
+      // Buffer para evitar quedarse pegado
+      const buffer = 0.1; // 10cm de buffer
+
+      // Función para verificar colisión con buffer
+      const checkCollision = (pos) => {
+        for (const box of this._obsAABB ?? []) {
+          if (pos.x + hx + buffer < box.min.x || pos.x - hx - buffer > box.max.x) continue;
+          if (pos.z + hz + buffer < box.min.z || pos.z - hz - buffer > box.max.z) continue;
+          return true;
+        }
+        return false;
+      };
+
+      // Intentar movimiento completo primero
+      const fullMovePos = newPos.clone().add(moveVector);
+      if (!checkCollision(fullMovePos)) {
+        newPos.copy(fullMovePos);
+      } else {
+        // Si hay colisión, intentar deslizamiento
+        const moveX = new THREE.Vector3(moveVector.x, 0, 0);
+        const moveZ = new THREE.Vector3(0, 0, moveVector.z);
+        
+        // Probar movimiento en X
+        const testPosX = newPos.clone().add(moveX);
+        if (!checkCollision(testPosX)) {
+          newPos.add(moveX);
+        }
+        
+        // Probar movimiento en Z
+        const testPosZ = newPos.clone().add(moveZ);
+        if (!checkCollision(testPosZ)) {
+          newPos.add(moveZ);
+        }
       }
 
-      if (!hit) {
-        this.root.position.copy(nxt);
+      // Actualizar posición si hubo movimiento
+      if (!newPos.equals(this.root.position)) {
+        this.root.position.copy(newPos);
         this.wRot -= v / this.wheelR;
         this.wheels.forEach(w => (w.rotation.x = this.wRot));
       }
@@ -222,12 +252,12 @@ export class Forklift {
 
     /* highlight estantería */
     if (this.shelf) {
-      const d = Math.hypot(
-        this.#tip().x - this.shelf.center().x,
-        this.#tip().z - this.shelf.center().z
-      );
-      if (this.carried && d < 9) this.shelf.showHighlight(this.carried);
-      else this.shelf.hideHighlight();
+      const tipPos = this.#tip();
+      if (this.carried) {
+        this.shelf.showHighlight(tipPos, false);
+      } else {
+        this.shelf.showHighlight(tipPos, true);
+      }
     }
 
     /* interacción G */
@@ -239,29 +269,42 @@ export class Forklift {
 
 /* ═════════════════════ pick / place ═════════════════════ */
   #pick () {
-    if (!this.printer) return;
-    const obj = this.printer.currentObject();
-    if (!obj) return;
-    if (this.#tip().distanceTo(
-          obj.getWorldPosition(new THREE.Vector3())
-        ) > 2.4) return;
+    if (this.printer) {
+      const obj = this.printer.currentObject();
+      const tipPos = this.#tip();
+      if (obj && tipPos.distanceTo(
+            obj.getWorldPosition(new THREE.Vector3())
+          ) <= 5) {
+        const taken = this.printer.detachObject();
+        if (taken) {
+          this.forkGroup.add(taken);
+          taken.position.set(0, 0.15, 0.7);
+          this.carried = taken;
+          return;
+        }
+      }
+    }
 
-    const taken = this.printer.detachObject();
-    if (taken) {
-      this.forkGroup.add(taken);
-      taken.position.set(0, 0.15, 0.7);
-      this.carried = taken;
+    // Try to pick up from shelf
+    if (this.shelf) {
+      const tipPos = this.#tip();
+      const { object, distance } = this.shelf.findClosestObject(tipPos);
+      if (object && distance <= 5) {
+        if (this.shelf.removeObject(object)) {
+          this.forkGroup.add(object);
+          object.position.set(0, 0.15, 0.7);
+          this.carried = object;
+        }
+      }
     }
   }
 
   #place () {
     if (!this.shelf) return;
-    const d = Math.hypot(
-      this.#tip().x - this.shelf.center().x,
-      this.#tip().z - this.shelf.center().z
-    );
-    if (d > 9) return;
-    if (this.shelf.addObject(this.carried)) this.carried = null;
+    const tipPos = this.#tip();
+    if (this.shelf.addObject(this.carried, tipPos)) {
+      this.carried = null;
+    }
   }
 
 /* ═════════════════════ entorno estático ═════════════════════ */

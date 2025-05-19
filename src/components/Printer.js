@@ -1,109 +1,167 @@
 import * as THREE from 'three';
-import {
-  profiles, profilesCat, shapes,
-  sweepPathCatmull
-} from '../utils/Shapes.js';
+import { profiles, shapes, sweepPathCatmull } from '../utils/Shapes.js';
 
+/**
+ * 3-D Printer
+ * -----------
+ * • mode  : 'revolution' | 'sweep'
+ * • form  : 'A1'-'A4' | 'B1'-'B4'
+ * • height: user-chosen height (scene units)
+ * • twist : torsión (sweep únicamente)
+ */
 export class Printer {
   constructor () {
-    /* ---------- estructura fija ---------- */
+    /* ─── main group ─── */
     this.root = new THREE.Group();
-    this.root.position.set(-22, 0, -6);
+    this.root.position.set(-12, 0, -6);
 
-    const mBase = new THREE.MeshStandardMaterial({ color: 0x3a6aa8 });
-    const base  = new THREE.Mesh(new THREE.BoxGeometry(3, 0.6, 3), mBase);
-    base.position.y = 0.3;
-    const col   = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 0.3), mBase);
-    col.position.y = 2;
-    this.root.add(base, col);
+    /* ─── visual chassis ─── */
+    this.#buildPedestal();
+    this.#buildColumn();
+    this.#buildHead();
 
-    /* cabezal (sube pero NO contiene al objeto) */
-    this.head = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.4, 0.6),
-      new THREE.MeshStandardMaterial({ color: 0x1ba21b })
-    );
-    this.head.position.y = 0.;
-    this.root.add(this.head);
-
-    /* ---------- estado & parámetros ---------- */
+    /* ─── parameters (GUI) ─── */
     this.params = {
-      mode : 'revolution',     // revolution | sweep
-      curve: 'Bezier',         // Bezier | Catmull
-      form : 'A1',             // A*, C*, B*
+      mode  : 'revolution',
+      form  : 'A1',
       height: 2,
-      twist : 0
+      twist : 0,
+      curve : 'Bezier'
     };
-    this.scale = 0.7;
-    this.obj   = null;
-    this.t     = 0;            // progreso 0‒1
-    this.speed = 0.5;          // m/s de cabezal
+
+    this.scale = 0.7;      // radio-escala general
+    this.obj   = null;     // pieza en impresión
+    this.t     = 0;        // progreso 0-1
+    this.speed = 0.5;      // velocidad relativa
   }
 
-  /* ---------- genera nuevo objeto ---------- */
+/* ╔═════════════ visual building ═════════════╗ */
+  #buildPedestal () {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.35 });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.2, 0.6, 32), mat);
+    base.position.y = 0.3;
+    base.receiveShadow = true;
+    this.root.add(base);
+
+    /* build-plate (glass) */
+    const plate = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.8, 1.8, 0.05, 32),
+      new THREE.MeshStandardMaterial({ color: 0x88cfff, roughness: 0.05,
+                                       metalness: 0.2, transparent: true,
+                                       opacity: 0.65 })
+    );
+    plate.position.y = 0.63;
+    plate.receiveShadow = true;
+    this.buildPlateY = plate.position.y + 0.025; // top surface
+    this.root.add(plate);
+  }
+
+  #buildColumn () {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xbbc4d0, roughness: 0.2 });
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.5, 24), mat);
+    col.position.set(0, 2.85, -0.9);
+    this.root.add(col);
+  }
+
+  #buildHead () {
+    /* print-head housing */
+    const headGeo = new THREE.BoxGeometry(0.6, 0.4, 0.6);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x20242a });
+    this.head = new THREE.Mesh(headGeo, headMat);
+    this.head.castShadow = true;
+
+    /* LED ring indicator */
+    const ringGeo = new THREE.TorusGeometry(0.35, 0.025, 8, 20);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffea });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -0.18;
+    this.head.add(ring);
+
+    /* position head at start height */
+    this.head.position.set(0, this.buildPlateY + 0.4, -0.9);
+    this.root.add(this.head);
+  }
+
+/* ╔═════════════ printing pipeline ═════════════╗ */
   generate () {
-    /* limpiar anterior */
+    /* remove previous */
     if (this.obj) {
-      this.obj.parent.remove(this.obj);
-      this.obj.geometry.dispose(); this.obj.material.dispose();
+      this.obj.geometry.dispose();
+      this.obj.material.dispose();
+      this.root.remove(this.obj);
+      this.obj = null;
     }
 
-    const { mode, curve, form, height, twist } = this.params;
+    const { mode, form, height, twist } = this.params;
     const S = this.scale;
-
     let geo;
-    if (mode === 'revolution') {
-      const raw = (curve === 'Bezier') ? profiles[form] : profilesCat[form];
-      const pts = raw.map(([x, y]) => new THREE.Vector2(x * S, (y / 2) * height * S));
-      geo = new THREE.LatheGeometry(pts, 64);
-    } else { /* sweep */
-      const shape = shapes[form];
-      const path  = (curve === 'Bezier')
-        ? new THREE.LineCurve3(
-            new THREE.Vector3(0, -height * S / 2, 0),
-            new THREE.Vector3(0,  height * S / 2, 0))
-        : sweepPathCatmull(height * S);
 
-      geo = new THREE.ExtrudeGeometry(shape, { steps: 120, bevelEnabled: false, extrudePath: path });
+    if (mode === 'revolution') {
+      /* -------- Bézier profiles A-series -------- */
+      const raw = profiles[form];
+      if (!raw) { console.warn(`Perfil ${form} no existe`); return; }
+
+      const pts = raw.map(v => new THREE.Vector2(v[0] * S, v[1] * height));
+      geo = new THREE.LatheGeometry(pts, 64);
+
+    } else { // sweep
+      /* -------- Catmull shapes B-series -------- */
+      const sh = shapes[form];
+      if (!sh) { console.warn(`Shape ${form} no existe`); return; }
+
+      const path = sweepPathCatmull(height);           // 0 ➜ height
+      geo = new THREE.ExtrudeGeometry(sh, {
+        steps: 120, bevelEnabled: false, extrudePath: path
+      });
+      geo.scale(S, 1, S);   // solo radio, NO alto
       geo.rotateY(THREE.MathUtils.degToRad(twist));
-      geo.scale(S, S, S);
     }
 
-    this.obj = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xff5533 }));
-    this.obj.position.set(0, 0, 0);     // sobre la base
-    this.obj.scale.set(1, 0.001, 1);    // empieza “aplastado” (crece en Y)
+    /* mover base a Y=0 para que crezca hacia arriba */
+    geo.computeBoundingBox();
+    const minY = geo.boundingBox.min.y;
+    geo.translate(0, -minY, 0);
+
+    /* mesh */
+    this.obj = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({ color: 0x8e9eb9, metalness: 0.25, roughness: 0.4 })
+    );
+    this.obj.scale.y = 0;                   // inicia invisible (altura 0)
+    this.obj.position.set(0, this.buildPlateY, 0);
+    this.obj.castShadow = this.obj.receiveShadow = true;
     this.root.add(this.obj);
 
-    /* reset animación */
+    /* reset anim */
     this.t = 0;
-    this.head.visible = true;
-    this.head.position.y = 0.4;
   }
 
-  /* ---------- animación por frame ---------- */
   update (dt) {
     if (!this.obj) return;
 
-    const h = this.params.height * this.scale;
+    const h = this.params.height;           // altura real
     this.t  = Math.min(this.t + (this.speed * dt) / h, 1);
 
-    /* el cabezal asciende */
-    this.head.position.y = 0.4 + this.t * h;
-
-    /* la pieza crece suavemente en Y */
+    /* crecer pieza */
     this.obj.scale.y = this.t;
 
-    /* cuando termina, ocultamos cabezal opcionalmente */
-    if (this.t >= 1 && this.head.visible) this.head.visible = false;
-    // esto puedo cambiarlo si quiero que se siga viendo el cabezal verde
+    /* subir print-head en sincronía */
+    this.head.position.y = this.buildPlateY + h * this.t + 0.4;
   }
 
-  /* ---------- util ---------- */
+/* ╔═════════════ utilidades ═════════════╗ */
   currentObject () { return this.obj; }
-  detachObject  () {
+
+  detachObject () {
     const o = this.obj;
-    if (o) this.obj = null;
+    if (o) {
+      this.obj = null;
+      this.root.remove(o);
+    }
     return o;
   }
+
   center () {
     return new THREE.Vector3().setFromMatrixPosition(this.root.matrixWorld);
   }
