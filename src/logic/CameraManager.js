@@ -45,14 +45,13 @@ export class CameraManager {
     this.list  = [null, this.cam1, this.cam2, this.cam3, this.cam4, this.cam5, this.cam6];
 
     window.addEventListener('keydown', e => {
-      const n = Number(e.key);
-      if (n >= 1 && n <= 6) this.index = n;
-      
+      if (['1','2','3','4','5','6'].includes(e.key)) {
+        this.index = Number(e.key);
+      }
       // Add O/P key controls for zooming
       if (this.index >= 1 && this.index <= 3) {
         const camera = this.list[this.index];
         const controls = [this.ctl1, this.ctl2, this.ctl3][this.index - 1];
-        
         if (e.key.toLowerCase() === 'o') {
           // Zoom in by adjusting the camera's position
           const distance = camera.position.distanceTo(controls.target);

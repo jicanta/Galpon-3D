@@ -1,55 +1,125 @@
+/* utils/Shapes.js */
 import * as THREE from 'three';
 
-/* ── Perfiles Bézier para revolución (A1-A4) ── */
-const A1 = [[0,0],[0.9,0],[1,0.2],[1,1.8],[0.9,2],[0,2]];
-const A2 = [[0,0],[0.6,0],[0.7,2],[0,2]];
-const A3 = [[0,0],[0.6,0],[0.3,1],[0.3,1.3],[0.9,1.6],[1,2],[0,2]];
-const A4 = [[0,0],[0.5,0],[0.6,1],[1,1.1],[1.1,1.6],[0.6,1.8],[0,1.8]];
+/* ────────── Perfiles Bézier para revolución (A-series) ────────── */
+export const profiles = {
+  /* A1 – silueta ondulada */
+  A1: [
+    [0, 0], [1.00, 0],
+    [0.85, 0.30], [0.60, 1.00], [0.85, 1.70],
+    [1.00, 2.00], [0, 2.00]
+  ],
 
-export const profiles = { A1, A2, A3, A4 };
+  /* A2 – contorno en “S” estilizado */
+  A2: [
+    [0, 0], [0.65, 0],
+    [0.75, 0.50], [0.55, 1.50],
+    [0.65, 2.00], [0, 2.00]
+  ],
 
-/* ── Formas planas para barrido (B1-B4) ── */
-function star (r=0.8,n=5) {
-  const s=new THREE.Shape(); const a=2*Math.PI/n;
-  s.moveTo(r,0);
-  for(let i=1;i<=n;i++){
-    s.lineTo(Math.cos(i*a)*r,Math.sin(i*a)*r);
-    s.lineTo(Math.cos(i*a+a/2)*r*0.35,Math.sin(i*a+a/2)*r*0.35);
-  }
-  return s.closePath();
-}
+  /* A3 – base en punta + parte alta curva */
+  A3: [
+    [0, 0], [0.75, 0.00],
+    [0.35, 1.00], [0.35, 1.30],
+    [0.90, 1.60], [1.05, 2.00],
+    [0, 2.00]
+  ],
 
-const B1=new THREE.Shape().moveTo(-0.6,-0.6).lineTo(0.6,-0.6).lineTo(0.6,0.6).lineTo(-0.6,0.6).closePath();
-const B2=star();
-const B3=new THREE.Shape().absarc(0,0,0.8,0,Math.PI*2);
-const B4=new THREE.Shape()
-  .moveTo(-0.5,-0.4).absarc(0,-0.4,0.5,Math.PI,0)
-  .lineTo(0.5,0.8).absarc(0,0.8,0.5,0,Math.PI).closePath();
+  /* A4 – perfil sinuoso tipo “s” doble */
+  A4: [
+    [0, 0], [0.60, 0],
+    [0.70, 0.60], [1.10, 0.80],
+    [1.05, 1.40], [0.70, 1.60],
+    [0.60, 1.80], [0, 1.80]
+  ]
+};
 
-export const shapes = { B1, B2, B3, B4 };
+/* ────────── Formas planas para barrido (B-series) ────────── */
+export const shapes = {
+  /* B1 – triángulo equilátero (apunta al +X) */
+  B1: (() => {
+    const s = new THREE.Shape();
+    const r = 0.9;                     // radio circunscrito
+    for (let i = 0; i < 3; i++) {
+      const θ = Math.PI / 2 + i * (2 * Math.PI / 3);
+      const x = r * Math.cos(θ);
+      const y = r * Math.sin(θ);
+      if (i === 0) s.moveTo(x, y);
+      else s.lineTo(x, y);
+    }
+    s.closePath();
+    return s;
+  })(),
 
-/* ── Perfiles Catmull-Rom para revolución (C1-C4) ── */
-function catProfile (...pts) {
-  const crv = new THREE.CatmullRomCurve3(
-    pts.map(([x,y])=>new THREE.Vector3(x,y,0)), false,'catmullrom',0.5);
-  return crv.getPoints(24).map(v=>new THREE.Vector2(v.x,v.y));
-}
+  /* B2 – estrella de 8 puntas suave */
+  B2: (() => {
+    const s = new THREE.Shape();
+    const R = 0.85;          // radio exterior
+    const r = 0.35;          // radio interior
+    const N = 8;
+    const a = (Math.PI * 2) / N;
 
-const C1 = catProfile([0,0],[1,0.2],[0.8,1.8],[0,2]);
-const C2 = catProfile([0,0],[0.5,0],[1,1],[0.5,2],[0,2]);
-const C3 = catProfile([0,0],[0.7,0],[0.9,1],[0.5,2],[0,2]);
-const C4 = catProfile([0,0],[0.4,0.4],[1.1,1.2],[0.6,1.8],[0,1.8]);
+    s.moveTo(R, 0);
+    for (let i = 0; i < N; i++) {
+      const θo = i * a;
+      const θi = θo + a / 2;
+      const cpθ = θo + a * 0.25;
 
-export const profilesCat = { C1, C2, C3, C4 };
+      s.quadraticCurveTo(
+        Math.cos(cpθ) * (r + 0.12),
+        Math.sin(cpθ) * (r + 0.12),
+        Math.cos(θi) * r,
+        Math.sin(θi) * r
+      );
+    }
+    s.closePath();
+    return s;
+  })(),
 
-/* ── Trayectoria Catmull-Rom 3D para barrido ── */
-export function sweepPathCatmull (h=2) {
+  /* B3 – cruz con esquinas redondeadas */
+  B3: (() => {
+    const t = 0.35;   // medio ancho brazo
+    const w = 0.8;    // largo brazo
+    const r = 0.18;   // radio esquina
+    const s = new THREE.Shape();
+
+    s.moveTo(-t,  w - r)
+     .lineTo( t,  w - r)
+     .absarc( t,  w - r, r, Math.PI, 0, false)
+     .lineTo( w - r,  t)
+     .absarc( w - r,  t, r, Math.PI * 1.5, 0, false)
+     .lineTo( t, -t)
+     .lineTo( t, -w + r)
+     .absarc( t, -w + r, r, 0, Math.PI / 2, false)
+     .lineTo(-t, -w + r)
+     .absarc(-t, -w + r, r, Math.PI / 2, Math.PI, false)
+     .lineTo(-t, -t)
+     .lineTo(-w + r, -t)
+     .absarc(-w + r, -t, r, 0, -Math.PI / 2, true)
+     .lineTo(-w + r,  t)
+     .absarc(-w + r,  t, r, -Math.PI / 2, Math.PI, true)
+     .closePath();
+
+    return s;
+  })(),
+
+  /* B4 – píldora vertical (capsule) */
+  B4: (() => {
+    const w = 1.2, h = 2.0, r = 0.6;
+    const s = new THREE.Shape();
+    s.absarc(0,  h / 2 - r, r, Math.PI, 0,  false);
+    s.lineTo( w / 2, -h / 2 + r);
+    s.absarc(0, -h / 2 + r, r, 0, Math.PI, false);
+    s.lineTo(-w / 2,  h / 2 - r);
+    s.closePath();
+    return s;
+  })()
+};
+
+/* ────────── Trayectoria recta para barrido ────────── */
+export function sweepPathCatmull (h = 2) {
   return new THREE.CatmullRomCurve3(
-    [
-      new THREE.Vector3(0,-h/2,0),
-      new THREE.Vector3(0.8,-h/4,0.4),
-      new THREE.Vector3(-0.6,h/4,-0.5),
-      new THREE.Vector3(0,h/2,0)
-    ], false,'catmullrom',0.5
+    [ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, h, 0) ],
+    false, 'catmullrom', 0.5
   );
 }
