@@ -13,6 +13,21 @@ export class Printer {
     this.#buildColumn();
     this.#buildHead();
 
+    /* ─ plano de impresión ─ */
+    this.printPlane = new THREE.Mesh(
+      new THREE.BoxGeometry(0.8, 0.05, 1.2),  // Alargado en Z para que sobresalga
+      new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+      })
+    );
+    // Posicionado para que sobresalga del cabezal hacia el centro
+    this.printPlane.position.set(0, this.buildPlateY, -0.3);  // Movido hacia adelante
+    this.printPlane.receiveShadow = true;
+    this.root.add(this.printPlane);
+
     /* ─ parámetros GUI ─ */
     this.params = {
       mode  : 'revolution',   // 'revolution' | 'sweep'
@@ -114,7 +129,7 @@ export class Printer {
       const shape = shapes[form];
       if (!shape) { console.warn(`Shape ${form} no existe`); return; }
 
-      /* 1. Extrusión “profundidad” Z = height */
+      /* 1. Extrusión "profundidad" Z = height */
       geo = new THREE.ExtrudeGeometry(shape, {
         depth        : height,
         steps        : 140,
@@ -155,7 +170,7 @@ export class Printer {
       geo,
       new THREE.MeshStandardMaterial({ color, metalness: 0.25, roughness: 0.4 })
     );
-    this.obj.scale.y = 0;                       // inicia “vacía”
+    this.obj.scale.y = 0;                       // inicia "vacía"
     this.obj.position.set(0, this.buildPlateY, 0);
     this.obj.castShadow = this.obj.receiveShadow = true;
     this.root.add(this.obj);
@@ -172,6 +187,7 @@ export class Printer {
 
     this.obj.scale.y      = this.t;                         // crecer
     this.head.position.y  = this.buildPlateY + h * this.t + 0.4; // cabezal
+    this.printPlane.position.y = this.buildPlateY + h * this.t + 0.2;  // plano de impresión, ligeramente por encima
   }
 
   /* ╔═ utilidades ═╗ */

@@ -6,7 +6,7 @@ import { Shelf }         from './components/Shelf.js';
 import { CameraManager } from './logic/CameraManager.js';
 import { Input }         from './logic/Input.js';
 import { initGUI }       from './gui/Menu.js';
-import { hud }           from './hud.js';          // ←  importa HUD aquí
+import { hud }           from './hud.js';
 
 /* ------------ escena & renderer ------------ */
 const scene = new THREE.Scene();
@@ -17,26 +17,66 @@ if (globalThis.__renderer__) {
   renderer = globalThis.__renderer__;
 } else {
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.shadowMap.enabled  = true;
-  renderer.toneMapping        = THREE.ACESFilmicToneMapping;
-  renderer.outputColorSpace   = THREE.SRGBColorSpace;
-  document.body.style.margin  = '0';
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  document.body.style.margin = '0';
   document.body.appendChild(renderer.domElement);
-  globalThis.__renderer__ = renderer;              // cache global
+  globalThis.__renderer__ = renderer;
 }
 
 renderer.setSize(window.innerWidth, window.innerHeight);
+
+// Objeto para almacenar parámetros de iluminación
+scene.lights = {
+  directional: null,
+  point: null,
+  ambient: null,
+  fill: null,
+  renderer: renderer
+};
 
 /* ------------ cámaras ------------ */
 const camManager = new CameraManager(renderer, scene);
 
 /* ------------ luces ------------ */
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const dir = new THREE.DirectionalLight(0xffffff, 1.5);
+// Luz ambiental principal
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambient);
+scene.lights.ambient = ambient;
+
+// Luz direccional principal (como el sol)
+const dir = new THREE.DirectionalLight(0xffffff, 1.0);
 dir.position.set(6, 12, 6);
-dir.castShadow = true; scene.add(dir);
-const pt = new THREE.PointLight(0xfff0e0, 0.8, 50, 2);
-pt.position.set(0, 6, -2); scene.add(pt);
+dir.castShadow = true;
+dir.shadow.mapSize.width = 2048;
+dir.shadow.mapSize.height = 2048;
+dir.shadow.camera.near = 0.5;
+dir.shadow.camera.far = 50;
+dir.shadow.camera.left = -20;
+dir.shadow.camera.right = 20;
+dir.shadow.camera.top = 20;
+dir.shadow.camera.bottom = -20;
+dir.shadow.bias = -0.0001;
+scene.add(dir);
+scene.lights.directional = dir;
+
+// Luz puntual principal
+const pt = new THREE.PointLight(0xfff0e0, 0.5, 50, 2);
+pt.position.set(0, 6, -2);
+pt.castShadow = true;
+pt.shadow.mapSize.width = 1024;
+pt.shadow.mapSize.height = 1024;
+scene.add(pt);
+scene.lights.point = pt;
+
+// Luz de relleno
+const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+fill.position.set(-6, 8, -6);
+scene.add(fill);
+scene.lights.fill = fill;
 
 /* ------------ suelo + grid ------------ */
 const floor = new THREE.Mesh(
@@ -57,7 +97,7 @@ forklift.setEnvironment(printer, shelf);
 camManager.setTargets(printer, shelf);
 
 /* ------------ GUI ------------ */
-initGUI(printer);                // GUI actualiza HUD
+initGUI(printer, scene);                // Pasamos la escena al GUI
 
 /* ------------ input ------------ */
 const input = new Input();
