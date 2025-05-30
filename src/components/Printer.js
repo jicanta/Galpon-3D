@@ -161,17 +161,16 @@ export class Printer {
       pos.needsUpdate = true;
     }
 
-    /* base a Y = 0 */
-    geo.computeBoundingBox();
-    geo.translate(0, -geo.boundingBox.min.y, 0);
-
     /* mesh final */
     this.obj = new THREE.Mesh(
       geo,
       new THREE.MeshStandardMaterial({ color, metalness: 0.25, roughness: 0.4 })
     );
     this.obj.scale.y = 0;                       // inicia "vacía"
-    this.obj.position.set(0, this.buildPlateY, 0);
+    // Ajustar posición Y para que la base esté sobre buildPlateY
+    geo.computeBoundingBox();
+    const minY = geo.boundingBox.min.y;
+    this.obj.position.set(0, this.buildPlateY - minY, 0);
     this.obj.castShadow = this.obj.receiveShadow = true;
     this.root.add(this.obj);
 
