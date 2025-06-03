@@ -27,7 +27,7 @@ const bezierProfiles = {
       new THREE.Vector3(0.0, 0.9085, 0),
       new THREE.Vector3(0.05, 0.95, 0),
       new THREE.Vector3(0.15, 0.98, 0),
-      new THREE.Vector3(0.2778, 1.0, 0)
+      new THREE.Vector3(0.2778, 1.5, 0)
     )
   ],
 
@@ -54,8 +54,8 @@ const bezierProfiles = {
     new THREE.CubicBezierCurve3(
       new THREE.Vector3(0.65, 1.5, 0),
       new THREE.Vector3(0.7, 1.5, 0),
-      new THREE.Vector3(0.3, 2.0, 0),
-      new THREE.Vector3(0, 2.0, 0)
+      new THREE.Vector3(0.3, 2.5, 0),
+      new THREE.Vector3(0, 2.5, 0)
     )
   ],
 
@@ -88,8 +88,8 @@ const bezierProfiles = {
     new THREE.CubicBezierCurve3(
       new THREE.Vector3(0.9, 1.6, 0),
       new THREE.Vector3(1.1, 1.6, 0),
-      new THREE.Vector3(1.0, 2.0, 0),
-      new THREE.Vector3(0, 2.0, 0)
+      new THREE.Vector3(1.0, 2.5, 0),
+      new THREE.Vector3(0, 2.5, 0)
     )
   ],
 
@@ -134,8 +134,8 @@ const bezierProfiles = {
     new THREE.CubicBezierCurve3(
       new THREE.Vector3(0.6, 1.8, 0),
       new THREE.Vector3(0.6, 1.8, 0),
-      new THREE.Vector3(0.3, 1.8, 0),
-      new THREE.Vector3(0, 1.8, 0)
+      new THREE.Vector3(0.3, 2.3, 0),
+      new THREE.Vector3(0, 2.3, 0)
     )
   ]
 };

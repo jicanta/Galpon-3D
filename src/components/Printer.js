@@ -2,50 +2,64 @@
 import * as THREE from 'three';
 import { profiles, shapes } from '../utils/Shapes.js';
 
+/**
+ * Impresora 3‑D con animación layer‑by‑layer (sin escalado de la pieza).
+ * El objeto se “revela” mediante un plano de recorte dinámico; la tapa
+ * verde (capa de impresión) se ha elevado 5 cm para mayor holgura.
+ * ------------------------------------------------------------------
+ * 🔸  renderer.localClippingEnabled = true
+ * ------------------------------------------------------------------
+ */
 export class Printer {
   constructor () {
-    /* ─ grupo raíz ─ */
+    /* ─ configuración general ─ */
+    this.scale   = 0.7;   // factor radial (X‑Z)
+    this.obj     = null;  // mesh de la pieza en curso
+    this.t       = 0;     // progreso 0‑1
+    this.speed   = 0.5;   // unidades de altura por segundo
+
+    /* ─ escena raíz ─ */
     this.root = new THREE.Group();
     this.root.position.set(-12, 0, -6);
 
-    /* ─ chasis visual ─ */
-    this.#buildPedestal();  // buildPlateY is set here
-
-    /* ─ plano de corte (clip plane) ─ */
-    // Visible side: everything with y <= current build height
-    // Use normal pointing DOWN so the “positive” half–space is below the plane
-    this.clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), this.buildPlateY);
-
+    /* ─ chasis ─ */
+    this.#buildPedestal();
     this.#buildColumn();
     this.#buildHead();
 
-    /* ─ plano de impresión ─ */
-    this.printPlane = new THREE.Mesh(
-      new THREE.BoxGeometry(0.8, 0.05, 1.2),
-      new THREE.MeshStandardMaterial({
-        color: 0x00ff00,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide
-      })
+    /* ─ offsets y clipping ─ */
+    this.clipPlaneOffset  = 0.0005; // evita z‑fighting con la pieza
+    this.printPlaneLift   = 0.5;   // +5 cm de separación visual
+    this.clipPlane        = new THREE.Plane(
+      new THREE.Vector3(0, -1, 0),
+      this.buildPlateY + this.clipPlaneOffset
     );
-    this.printPlane.position.set(0, this.buildPlateY, -0.3);
+
+    /* ─ capa de impresión visual ─ */
+    const printMat = new THREE.MeshStandardMaterial({
+      color       : 0x00ff00,
+      transparent : true,
+      opacity     : 0.7,
+      side        : THREE.DoubleSide,
+      depthWrite  : false,
+      polygonOffset      : true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits : -1
+    });
+    this.printPlane = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 1.2), printMat);
+    this.printPlane.position.set(0, this.buildPlateY + this.printPlaneLift, -0.3);
     this.printPlane.receiveShadow = true;
+    this.printPlane.renderOrder   = 2;
     this.root.add(this.printPlane);
 
     /* ─ parámetros GUI ─ */
     this.params = {
-      mode  : 'revolution',   // 'revolution' | 'sweep'
-      form  : 'A1',           // A1-A4 o B1-B4
-      height: 2,              // unidades de escena
-      twist : 0,              // grados (solo barrido)
+      mode  : 'revolution',
+      form  : 'A1',
+      height: 2,
+      twist : 0,
       color : '#8e9eb9'
     };
-
-    this.scale = 0.7;         // factor radial (X-Z)
-    this.obj   = null;        // pieza impresa
-    this.t     = 0;           // progreso 0-1
-    this.speed = 0.5;         // unid. altura / segundo
   }
 
   /* ╔═ chasis estático ═╗ */
@@ -61,8 +75,11 @@ export class Printer {
     const plate = new THREE.Mesh(
       new THREE.CylinderGeometry(1.8, 1.8, 0.05, 32),
       new THREE.MeshStandardMaterial({
-        color: 0x88cfff, roughness: 0.05,
-        metalness: 0.2, transparent: true, opacity: 0.65
+        color: 0x88cfff,
+        roughness: 0.05,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.65
       })
     );
     plate.position.y = 0.63;
@@ -106,16 +123,11 @@ export class Printer {
     this.root.add(this.head);
   }
 
-  /* ╔═ generar pieza ═╗ */
+  /* ╔═ generar nueva pieza ═╗ */
   generate () {
-    /* limpia anterior */
     if (this.obj) {
       this.obj.geometry.dispose();
-      if (Array.isArray(this.obj.material)) {
-        this.obj.material.forEach(m => m.dispose());
-      } else {
-        this.obj.material.dispose();
-      }
+      (Array.isArray(this.obj.material) ? this.obj.material : [this.obj.material]).forEach(m => m.dispose());
       this.root.remove(this.obj);
       this.obj = null;
     }
@@ -125,109 +137,68 @@ export class Printer {
     let geo;
 
     if (mode === 'revolution') {
-      /* ─ revolución (Lathe) ─ */
       const raw = profiles[form];
       if (!raw) { console.warn(`Perfil ${form} no existe`); return; }
-
       const maxY = raw.reduce((m, [, y]) => Math.max(m, y), 0);
-      const pts  = raw.map(([x, y]) =>
-        new THREE.Vector2(x * S, (y / maxY) * height)
-      );
-      geo = new THREE.LatheGeometry(pts, 64);
-
+      geo = new THREE.LatheGeometry(raw.map(([x, y]) => new THREE.Vector2(x * S, (y / maxY) * height)), 64);
     } else {
-      /* ─ barrido ─ */
       const shape = shapes[form];
       if (!shape) { console.warn(`Shape ${form} no existe`); return; }
 
-      /* 1. Extrusión "profundidad" Z = height */
-      geo = new THREE.ExtrudeGeometry(shape, {
-        depth        : height,
-        steps        : 140,
-        bevelEnabled : false
-      });
-
-      /* 2. Escala radial (X-Y) */
+      geo = new THREE.ExtrudeGeometry(shape, { depth: height, steps: 140, bevelEnabled: false });
       geo.scale(S, S, 1);
-
-      /* 3. Rota −90° en X ⇒ eje Z (profundidad) → eje Y (altura) */
       geo.rotateX(-Math.PI / 2);
 
-      /* 4. Torsión progresiva en torno al eje Y */
-      const pos      = geo.attributes.position;
+      const pos = geo.attributes.position;
       const twistRad = THREE.MathUtils.degToRad(twist);
       for (let i = 0; i < pos.count; i++) {
-        const y = pos.getY(i);                 // 0 → height
-        const a = (y / height) * twistRad;     // ángulo parcial
-
+        const y = pos.getY(i);
+        const a = (y / height) * twistRad;
         const x = pos.getX(i);
         const z = pos.getZ(i);
-
-        pos.setXYZ(i,
-          x * Math.cos(a) - z * Math.sin(a),
-          y,
-          x * Math.sin(a) + z * Math.cos(a)
-        );
+        pos.setXYZ(i, x * Math.cos(a) - z * Math.sin(a), y, x * Math.sin(a) + z * Math.cos(a));
       }
       pos.needsUpdate = true;
     }
 
-    /* mesh final */
     const mat = new THREE.MeshStandardMaterial({
       color,
-      metalness: 0.25,
-      roughness: 0.4,
-      clippingPlanes: [this.clipPlane], // <- la magia ✂️
+      metalness : 0.25,
+      roughness : 0.4,
+      clippingPlanes: [this.clipPlane],
       clipShadows : true
     });
 
     this.obj = new THREE.Mesh(geo, mat);
-
-    /* Ajustar posición Y para que la base esté sobre buildPlateY */
     geo.computeBoundingBox();
-    const minY = geo.boundingBox.min.y;
-    this.obj.position.set(0, this.buildPlateY - minY, 0);
+    this.obj.position.set(0, this.buildPlateY - geo.boundingBox.min.y, 0);
     this.obj.castShadow = this.obj.receiveShadow = true;
     this.root.add(this.obj);
 
-    this.t = 0; // reinicia anim
-
-    // Asegurarse de que el primer frame esté completamente oculto
-    this.clipPlane.constant = this.buildPlateY;
+    this.t = 0;
+    this.clipPlane.constant = this.buildPlateY + this.clipPlaneOffset;
   }
 
-  /* ╔═ animar frame a frame ═╗ */
+  /* ╔═ animación por frame ═╗ */
   update (dt) {
     if (!this.obj) return;
 
     const h = this.params.height;
     this.t  = Math.min(this.t + (this.speed * dt) / h, 1);
 
-    /* Avanza el plano de corte */
-    this.clipPlane.constant = this.buildPlateY + h * this.t;
-
-    /* Mueve el cabezal y el "plano de impresión" */
-    this.head.position.y        = this.buildPlateY + h * this.t + 0.4;
-    this.printPlane.position.y  = this.buildPlateY + h * this.t + 0.2;
+    const planeY = this.buildPlateY + h * this.t + this.clipPlaneOffset;
+    this.clipPlane.constant   = planeY;
+    this.printPlane.position.y = planeY + this.printPlaneLift;
+    this.head.position.y       = planeY + 0.4 - this.clipPlaneOffset;
   }
 
   /* ╔═ utilidades ═╗ */
   currentObject () { return this.obj; }
 
-  /**
-   * Detacha la pieza terminada.
-   * – Limpia los clippingPlanes para que la pieza sea visible completa
-   */
-  detachObject   () {
+  detachObject () {
     const o = this.obj;
     if (o) {
-      // Quitar plano de corte
-      if (Array.isArray(o.material)) {
-        o.material.forEach(m => { m.clippingPlanes = null; m.needsUpdate = true; });
-      } else {
-        o.material.clippingPlanes = null;
-        o.material.needsUpdate   = true;
-      }
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.clippingPlanes = null; m.needsUpdate = true; });
       this.obj = null;
       this.root.remove(o);
     }
