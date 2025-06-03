@@ -9,13 +9,19 @@ export class Printer {
     this.root.position.set(-12, 0, -6);
 
     /* ─ chasis visual ─ */
-    this.#buildPedestal();
+    this.#buildPedestal();  // buildPlateY is set here
+
+    /* ─ plano de corte (clip plane) ─ */
+    // Visible side: everything with y <= current build height
+    // Use normal pointing DOWN so the “positive” half–space is below the plane
+    this.clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), this.buildPlateY);
+
     this.#buildColumn();
     this.#buildHead();
 
     /* ─ plano de impresión ─ */
     this.printPlane = new THREE.Mesh(
-      new THREE.BoxGeometry(0.8, 0.05, 1.2),  // Alargado en Z para que sobresalga
+      new THREE.BoxGeometry(0.8, 0.05, 1.2),
       new THREE.MeshStandardMaterial({
         color: 0x00ff00,
         transparent: true,
@@ -23,8 +29,7 @@ export class Printer {
         side: THREE.DoubleSide
       })
     );
-    // Posicionado para que sobresalga del cabezal hacia el centro
-    this.printPlane.position.set(0, this.buildPlateY, -0.3);  // Movido hacia adelante
+    this.printPlane.position.set(0, this.buildPlateY, -0.3);
     this.printPlane.receiveShadow = true;
     this.root.add(this.printPlane);
 
@@ -49,7 +54,8 @@ export class Printer {
       new THREE.CylinderGeometry(2, 2.2, 0.6, 32),
       new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.35 })
     );
-    base.position.y = 0.3; base.receiveShadow = true;
+    base.position.y = 0.3;
+    base.receiveShadow = true;
     this.root.add(base);
 
     const plate = new THREE.Mesh(
@@ -59,7 +65,8 @@ export class Printer {
         metalness: 0.2, transparent: true, opacity: 0.65
       })
     );
-    plate.position.y = 0.63; plate.receiveShadow = true;
+    plate.position.y = 0.63;
+    plate.receiveShadow = true;
     this.buildPlateY = plate.position.y + 0.025;
     this.root.add(plate);
   }
@@ -104,7 +111,11 @@ export class Printer {
     /* limpia anterior */
     if (this.obj) {
       this.obj.geometry.dispose();
-      this.obj.material.dispose();
+      if (Array.isArray(this.obj.material)) {
+        this.obj.material.forEach(m => m.dispose());
+      } else {
+        this.obj.material.dispose();
+      }
       this.root.remove(this.obj);
       this.obj = null;
     }
@@ -162,19 +173,27 @@ export class Printer {
     }
 
     /* mesh final */
-    this.obj = new THREE.Mesh(
-      geo,
-      new THREE.MeshStandardMaterial({ color, metalness: 0.25, roughness: 0.4 })
-    );
-    this.obj.scale.y = 0;                       // inicia "vacía"
-    // Ajustar posición Y para que la base esté sobre buildPlateY
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.25,
+      roughness: 0.4,
+      clippingPlanes: [this.clipPlane], // <- la magia ✂️
+      clipShadows : true
+    });
+
+    this.obj = new THREE.Mesh(geo, mat);
+
+    /* Ajustar posición Y para que la base esté sobre buildPlateY */
     geo.computeBoundingBox();
     const minY = geo.boundingBox.min.y;
     this.obj.position.set(0, this.buildPlateY - minY, 0);
     this.obj.castShadow = this.obj.receiveShadow = true;
     this.root.add(this.obj);
 
-    this.t = 0;                                 // reinicia anim
+    this.t = 0; // reinicia anim
+
+    // Asegurarse de que el primer frame esté completamente oculto
+    this.clipPlane.constant = this.buildPlateY;
   }
 
   /* ╔═ animar frame a frame ═╗ */
@@ -184,13 +203,36 @@ export class Printer {
     const h = this.params.height;
     this.t  = Math.min(this.t + (this.speed * dt) / h, 1);
 
-    this.obj.scale.y      = this.t;                         // crecer
-    this.head.position.y  = this.buildPlateY + h * this.t + 0.4; // cabezal
-    this.printPlane.position.y = this.buildPlateY + h * this.t + 0.2;  // plano de impresión, ligeramente por encima
+    /* Avanza el plano de corte */
+    this.clipPlane.constant = this.buildPlateY + h * this.t;
+
+    /* Mueve el cabezal y el "plano de impresión" */
+    this.head.position.y        = this.buildPlateY + h * this.t + 0.4;
+    this.printPlane.position.y  = this.buildPlateY + h * this.t + 0.2;
   }
 
   /* ╔═ utilidades ═╗ */
   currentObject () { return this.obj; }
-  detachObject   () { const o=this.obj; if(o){ this.obj=null; this.root.remove(o);} return o; }
-  center         () { return new THREE.Vector3().setFromMatrixPosition(this.root.matrixWorld); }
+
+  /**
+   * Detacha la pieza terminada.
+   * – Limpia los clippingPlanes para que la pieza sea visible completa
+   */
+  detachObject   () {
+    const o = this.obj;
+    if (o) {
+      // Quitar plano de corte
+      if (Array.isArray(o.material)) {
+        o.material.forEach(m => { m.clippingPlanes = null; m.needsUpdate = true; });
+      } else {
+        o.material.clippingPlanes = null;
+        o.material.needsUpdate   = true;
+      }
+      this.obj = null;
+      this.root.remove(o);
+    }
+    return o;
+  }
+
+  center () { return new THREE.Vector3().setFromMatrixPosition(this.root.matrixWorld); }
 }

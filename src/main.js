@@ -22,6 +22,7 @@ if (globalThis.__renderer__) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.localClippingEnabled = true;
   document.body.style.margin = '0';
   document.body.appendChild(renderer.domElement);
   globalThis.__renderer__ = renderer;
