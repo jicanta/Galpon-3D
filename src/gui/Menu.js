@@ -14,7 +14,7 @@ export function initGUI (printer, scene) {
 
   printerFolder.add(p,'form',[
       'A1','A2','A3','A4',
-      'B1','B2','B3','B4'])
+      'B1','B2','B3','B4', 'B5'])
      .name('Forma').onChange(refresh);
 
   printerFolder.add(p,'height',0.5,3,0.1).name('Altura').onChange(refresh);
