@@ -264,84 +264,60 @@ export const shapes = {
     return s;
   })(),
 
-  /* B3 – cruz ancha con esquinas redondeadas y muescas cuadradas centradas, contorno Catmull-Rom */
+  /* B3 – cuadrado con bordes redondeados y recortes grandes integrados en el contorno, usando Catmull-Rom */
   B3: (() => {
     const s = new THREE.Shape();
-    // Parámetros
-    const L = 1.4;   // lado exterior total
-    const r = 0.32;  // radio de esquina
-    const w = 0.32;  // ancho de muesca
-    const d = 0.32;  // profundidad de muesca
-    const arcPoints = 6; // puntos por arco
+    const L = 1.4;   // lado del cuadrado
+    const r = 0.45;  // radio de esquina
+    const w = 0.32;  // ancho del recorte grande
+    const d = 0.32;  // profundidad del recorte grande
+    const bigW = 0.28; // ancho del recorte cuadrado grande
+    const bigD = 0.28; // profundidad del recorte cuadrado grande
     const points = [];
 
-    // Comenzar en la parte superior, lado derecho de la muesca superior
-    points.push(new THREE.Vector3(w/2, L/2, 0));
-    points.push(new THREE.Vector3(w/2, L/2 - d, 0));
-    points.push(new THREE.Vector3(-w/2, L/2 - d, 0));
-    points.push(new THREE.Vector3(-w/2, L/2, 0));
+    // --- Superior ---
+    points.push(new THREE.Vector3(-w/2, L/2, 0)); // extremo izquierdo recorte grande superior
+    points.push(new THREE.Vector3(-bigW/2, L/2, 0)); // extremo izquierdo recorte cuadrado grande superior
+    points.push(new THREE.Vector3(-bigW/2, L/2 - bigD, 0)); // fondo recorte cuadrado grande superior
+    points.push(new THREE.Vector3(bigW/2, L/2 - bigD, 0)); // fondo recorte cuadrado grande superior
+    points.push(new THREE.Vector3(bigW/2, L/2, 0)); // extremo derecho recorte cuadrado grande superior
+    points.push(new THREE.Vector3(w/2, L/2, 0)); // extremo derecho recorte grande superior
+    points.push(new THREE.Vector3(L/2 - r/2, L/2, 0)); // transición a esquina sup der
+    points.push(new THREE.Vector3(L/2, L/2 - r/2, 0)); // esquina sup der
 
-    // Esquina superior izquierda (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = -Math.PI - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        -(L/2 - r) + r * Math.cos(theta),
-        (L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
+    // --- Derecha ---
+    points.push(new THREE.Vector3(L/2, w/2, 0)); // extremo superior recorte grande derecho
+    points.push(new THREE.Vector3(L/2, bigW/2, 0)); // extremo superior recorte cuadrado grande derecho
+    points.push(new THREE.Vector3(L/2 - bigD, bigW/2, 0)); // fondo recorte cuadrado grande derecho
+    points.push(new THREE.Vector3(L/2 - bigD, -bigW/2, 0)); // fondo recorte cuadrado grande derecho
+    points.push(new THREE.Vector3(L/2, -bigW/2, 0)); // extremo inferior recorte cuadrado grande derecho
+    points.push(new THREE.Vector3(L/2, -w/2, 0)); // extremo inferior recorte grande derecho
+    points.push(new THREE.Vector3(L/2, -L/2 + r/2, 0)); // transición a esquina inf der
+    points.push(new THREE.Vector3(L/2 - r/2, -L/2, 0)); // esquina inf der
 
-    // Lado izquierdo superior hasta muesca izquierda
-    points.push(new THREE.Vector3(-L/2, w/2, 0));
-    points.push(new THREE.Vector3(-L/2 + d, w/2, 0));
-    points.push(new THREE.Vector3(-L/2 + d, -w/2, 0));
-    points.push(new THREE.Vector3(-L/2, -w/2, 0));
+    // --- Inferior ---
+    points.push(new THREE.Vector3(w/2, -L/2, 0)); // extremo derecho recorte grande inferior
+    points.push(new THREE.Vector3(bigW/2, -L/2, 0)); // extremo derecho recorte cuadrado grande inferior
+    points.push(new THREE.Vector3(bigW/2, -L/2 + bigD, 0)); // fondo recorte cuadrado grande inferior
+    points.push(new THREE.Vector3(-bigW/2, -L/2 + bigD, 0)); // fondo recorte cuadrado grande inferior
+    points.push(new THREE.Vector3(-bigW/2, -L/2, 0)); // extremo izquierdo recorte cuadrado grande inferior
+    points.push(new THREE.Vector3(-w/2, -L/2, 0)); // extremo izquierdo recorte grande inferior
+    points.push(new THREE.Vector3(-L/2 + r/2, -L/2, 0)); // transición a esquina inf izq
+    points.push(new THREE.Vector3(-L/2, -L/2 + r/2, 0)); // esquina inf izq
 
-    // Esquina inferior izquierda (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = -Math.PI/2 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        -(L/2 - r) + r * Math.cos(theta),
-        -(L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
+    // --- Izquierda ---
+    points.push(new THREE.Vector3(-L/2, -w/2, 0)); // extremo inferior recorte grande izquierdo
+    points.push(new THREE.Vector3(-L/2, -bigW/2, 0)); // extremo inferior recorte cuadrado grande izquierdo
+    points.push(new THREE.Vector3(-L/2 + bigD, -bigW/2, 0)); // fondo recorte cuadrado grande izquierdo
+    points.push(new THREE.Vector3(-L/2 + bigD, bigW/2, 0)); // fondo recorte cuadrado grande izquierdo
+    points.push(new THREE.Vector3(-L/2, bigW/2, 0)); // extremo superior recorte cuadrado grande izquierdo
+    points.push(new THREE.Vector3(-L/2, w/2, 0)); // extremo superior recorte grande izquierdo
+    points.push(new THREE.Vector3(-L/2, L/2 - r/2, 0)); // transición a esquina sup izq
+    points.push(new THREE.Vector3(-L/2 + r/2, L/2, 0)); // esquina sup izq
 
-    // Lado inferior izquierdo hasta muesca inferior
-    points.push(new THREE.Vector3(-w/2, -L/2, 0));
-    points.push(new THREE.Vector3(-w/2, -L/2 + d, 0));
-    points.push(new THREE.Vector3(w/2, -L/2 + d, 0));
-    points.push(new THREE.Vector3(w/2, -L/2, 0));
-
-    // Esquina inferior derecha (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = 0 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        (L/2 - r) + r * Math.cos(theta),
-        -(L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-
-    // Lado derecho inferior hasta muesca derecha
-    points.push(new THREE.Vector3(L/2, -w/2, 0));
-    points.push(new THREE.Vector3(L/2 - d, -w/2, 0));
-    points.push(new THREE.Vector3(L/2 - d, w/2, 0));
-    points.push(new THREE.Vector3(L/2, w/2, 0));
-
-    // Esquina superior derecha (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = Math.PI/2 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        (L/2 - r) + r * Math.cos(theta),
-        (L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-
-    // Catmull-Rom cerrada
+    // Catmull-Rom cerrada para el contorno principal
     const curve = new THREE.CatmullRomCurve3(points, true);
-    const curvePoints = curve.getPoints(180);
+    const curvePoints = curve.getPoints(240);
     s.moveTo(curvePoints[0].x, curvePoints[0].y);
     curvePoints.forEach(point => {
       s.lineTo(point.x, point.y);
