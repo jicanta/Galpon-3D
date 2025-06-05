@@ -166,7 +166,9 @@ export class Printer {
       metalness : 0.25,
       roughness : 0.4,
       clippingPlanes: [this.clipPlane],
-      clipShadows : true
+      clipShadows : true,
+      transparent: false,
+      opacity: 1
     });
 
     this.obj = new THREE.Mesh(geo, mat);

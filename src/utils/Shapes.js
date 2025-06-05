@@ -1,408 +1,200 @@
-/* utils/Shapes.js */
-import * as THREE from 'three';
+import * as THREE from "three";
 
-/* ────────── Perfiles Bézier para revolución (A-series) ────────── */
-const bezierProfiles = {
-  /* A1 – silueta ondulada */
+/* ────────────────────── Helpers ─────────────────────── */
+// V  = shorthand de THREE.Vector3
+// QC = quadratic Bezier, CC = cubic Bezier
+const V  = (x, y, z = 0)    => new THREE.Vector3(x, y, z);
+const QC = (p0, p1, p2)     => new THREE.QuadraticBezierCurve3(p0, p1, p2);
+const CC = (p0, p1, p2, p3) => new THREE.CubicBezierCurve3   (p0, p1, p2, p3);
+
+/**
+ * Convierte un array de curvas (2D en XY) a puntos para LatheGeometry.
+ *  • Muestrea “segments” puntos por curva.
+ *  • Usa |x| como radio, evitando winding inverso.
+ *  • Si varias muestras comparten la misma cota Y, conserva el radio máximo.
+ *  • Ordena bottom → top y fuerza radio 0 en la base y en la tapa.
+ */
+function lathePoints(curves, segments = 24, scale = 1) {
+  const raw = [];
+  curves.forEach(c => {
+    for (let i = 0; i <= segments; i++) {
+      const p = c.getPoint(i / segments);
+      raw.push({ y: p.y * scale, r: Math.abs(p.x) * scale });
+    }
+  });
+  // Agrupa radios por Y usando key redondeada
+  const byY = new Map();
+  raw.forEach(({ y, r }) => {
+    const k = y.toFixed(6);
+    byY.set(k, Math.max(byY.get(k) ?? 0, r));
+  });
+  const ys  = [...byY.keys()].map(parseFloat).sort((a, b) => a - b);
+  const pts = ys.map(y => new THREE.Vector2(byY.get(y.toFixed(6)), y));
+  pts[0].x = 0;                              // base
+  pts[pts.length - 1].x = 0;                 // tapa
+  return pts;
+}
+
+/* ──────────────── A-series (declaración de curvas) ──────────────── */
+const curvesA = {
+  // Coordenadas «full size» (x de 0 a −6, y 0 → 14)
   A1: [
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.0185, 0.0, 0),
-      new THREE.Vector3(0.009, 0.03, 0),
-      new THREE.Vector3(0.0, 0.06, 0),
-      new THREE.Vector3(0.0, 0.085, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.0, 0.085, 0),
-      new THREE.Vector3(0.15, 0.25, 0),
-      new THREE.Vector3(0.25, 0.4, 0),
-      new THREE.Vector3(0.3704, 0.549, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.3704, 0.549, 0),
-      new THREE.Vector3(0.25, 0.7, 0),
-      new THREE.Vector3(0.1, 0.85, 0),
-      new THREE.Vector3(0.0, 0.9085, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.0, 0.9085, 0),
-      new THREE.Vector3(0.05, 0.95, 0),
-      new THREE.Vector3(0.15, 0.98, 0),
-      new THREE.Vector3(0.2778, 1.5, 0)
-    )
+    CC(V(0, 14),   V(-2, 14),  V(-4, 14),  V(-6, 14)),
+    CC(V(-6, 14),  V(-6, 13.3),V(-6, 12.7),V(-6, 12)),
+    CC(V(-6, 12),  V(-6, 11),  V(-4.5,11), V(-1, 11)),
+    CC(V(-1, 11),  V(-2.2,10.5),V(-3.1,10),V(-3.3,9.3)),
+    CC(V(-3.3,9.3),V(-4.2,8),  V(-4.5,7.2),V(-4, 7)),
+    CC(V(-4, 7),   V(-3.4,5.8),V(-2.7,4.8),V(-3, 4)),
+    CC(V(-3, 4),   V(-2.3,3.6),V(-1.4,3.3),V(-1, 3)),
+    CC(V(-1, 3),   V(-3.8,2.5),V(-5.5,2.3),V(-6, 2)),
+    CC(V(-6, 2),   V(-6, 1.3), V(-6, 0.7), V(-6, 0)),
+    CC(V(-6, 0),   V(-4, 0),   V(-2, 0),   V(0, 0))
   ],
 
-  /* A2 – contorno en "S" estilizado */
+  // A2 y A4 ya vienen en mini-escala (≈ 1 unidad de alto)
   A2: [
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0.2, 0, 0),
-      new THREE.Vector3(0.5, 0, 0),
-      new THREE.Vector3(0.65, 0, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.65, 0, 0),
-      new THREE.Vector3(0.8, 0, 0),
-      new THREE.Vector3(0.7, 0.5, 0),
-      new THREE.Vector3(0.75, 0.5, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.75, 0.5, 0),
-      new THREE.Vector3(0.8, 0.5, 0),
-      new THREE.Vector3(0.6, 1.5, 0),
-      new THREE.Vector3(0.65, 1.5, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.65, 1.5, 0),
-      new THREE.Vector3(0.7, 1.5, 0),
-      new THREE.Vector3(0.3, 2.5, 0),
-      new THREE.Vector3(0, 2.5, 0)
-    )
+    CC(V(0, 0),   V(0.2, 0),  V(0.5, 0),  V(0.65, 0)),
+    CC(V(0.65,0), V(0.8, 0),  V(0.7, 0.5),V(0.75,0.5)),
+    CC(V(0.75,0.5),V(0.8,0.5),V(0.6,1.5), V(0.65,1.5)),
+    CC(V(0.65,1.5),V(0.7,1.5),V(0.3,2.5), V(0, 2.5))
   ],
 
-  /* A3 – base en punta + parte alta curva */
   A3: [
-    /* Tramo horizontal superior */
-    new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0.000, 1.000, 0),  // ( 0 ,14)
-      new THREE.Vector3(0.214, 1.000, 0),  // (-3 ,14)
-      new THREE.Vector3(0.429, 1.000, 0)   // (-6 ,14)
-    ),
-  
-    /* Bajada vertical suave */
-    new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0.429, 1.000, 0),  // (-6 ,14)
-      new THREE.Vector3(0.429, 0.929, 0),  // (-6 ,13)
-      new THREE.Vector3(0.429, 0.857, 0)   // (-6 ,12)
-    ),
-  
-    /* Primer redondeo ancho-estrecho */
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.429, 0.857, 0),  // (-6 ,12)
-      new THREE.Vector3(0.071, 0.786, 0),  // (-1 ,11)
-      new THREE.Vector3(0.214, 0.714, 0),  // (-3 ,10)
-      new THREE.Vector3(0.286, 0.500, 0)   // (-4 , 7)
-    ),
-  
-    /* Segundo redondeo estrecho-ancho */
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.286, 0.500, 0),  // (-4 , 7)
-      new THREE.Vector3(0.214, 0.286, 0),  // (-3 , 4)
-      new THREE.Vector3(0.071, 0.214, 0),  // (-1 , 3)
-      new THREE.Vector3(0.429, 0.143, 0)   // (-6 , 2)
-    ),
-  
-    /* Bajada vertical a la base */
-    new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0.429, 0.143, 0),  // (-6 , 2)
-      new THREE.Vector3(0.429, 0.071, 0),  // (-6 , 1)
-      new THREE.Vector3(0.429, 0.000, 0)   // (-6 , 0)
-    ),
-  
-    /* Tramo horizontal inferior de vuelta al eje */
-    new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0.429, 0.000, 0),  // (-6 , 0)
-      new THREE.Vector3(0.214, 0.000, 0),  // (-3 , 0)
-      new THREE.Vector3(0.000, 0.000, 0)   // ( 0 , 0)
-    )
+    QC(V(0, 14),  V(-3, 14),  V(-6, 14)),
+    QC(V(-6,14),  V(-6, 13),  V(-6, 12)),
+    CC(V(-6,12),  V(-1,11),   V(-3,10),  V(-4, 7)),
+    CC(V(-4, 7),  V(-3, 4),   V(-1, 3),  V(-6, 2)),
+    QC(V(-6, 2),  V(-6, 1),   V(-6, 0)),
+    QC(V(-6, 0),  V(-3, 0),   V(0, 0))
   ],
 
-  /* A4 – perfil sinuoso tipo "s" doble */
   A4: [
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0.2, 0, 0),
-      new THREE.Vector3(0.4, 0, 0),
-      new THREE.Vector3(0.6, 0, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.6, 0, 0),
-      new THREE.Vector3(0.8, 0, 0),
-      new THREE.Vector3(0.65, 0.6, 0),
-      new THREE.Vector3(0.7, 0.6, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.7, 0.6, 0),
-      new THREE.Vector3(0.75, 0.6, 0),
-      new THREE.Vector3(0.9, 0.8, 0),
-      new THREE.Vector3(1.1, 0.8, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(1.1, 0.8, 0),
-      new THREE.Vector3(1.3, 0.8, 0),
-      new THREE.Vector3(1.0, 1.4, 0),
-      new THREE.Vector3(1.05, 1.4, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(1.05, 1.4, 0),
-      new THREE.Vector3(1.1, 1.4, 0),
-      new THREE.Vector3(0.8, 1.6, 0),
-      new THREE.Vector3(0.7, 1.6, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.7, 1.6, 0),
-      new THREE.Vector3(0.6, 1.6, 0),
-      new THREE.Vector3(0.6, 1.8, 0),
-      new THREE.Vector3(0.6, 1.8, 0)
-    ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.6, 1.8, 0),
-      new THREE.Vector3(0.6, 1.8, 0),
-      new THREE.Vector3(0.3, 2.3, 0),
-      new THREE.Vector3(0, 2.3, 0)
-    )
+    CC(V(0, 0),   V(0.2,0),   V(0.4,0),  V(0.6,0)),
+    CC(V(0.6, 0), V(0.8,0),   V(0.65,0.6),V(0.7,0.6)),
+    CC(V(0.7,0.6),V(0.75,0.6),V(0.9,0.8), V(1.1,0.8)),
+    CC(V(1.1,0.8),V(1.3,0.8), V(1.0,1.4), V(1.05,1.4)),
+    CC(V(1.05,1.4),V(1.1,1.4),V(0.8,1.6), V(0.7,1.6)),
+    CC(V(0.7,1.6), V(0.6,1.6),V(0.6,1.8), V(0.6,1.8)),
+    CC(V(0.6,1.8), V(0.6,1.8),V(0.3,2.3), V(0, 2.3))
   ]
 };
 
-// Función para generar puntos a partir de curvas Bezier
-function generatePointsFromBezier(profile, segments = 20) {
-  const points = [];
-  profile.forEach(curve => {
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
-      const point = curve.getPoint(t);
-      points.push([point.x, point.y]);
-    }
+// Escala individual (A1 y A3 reducidas 1/8)
+const scaleMap = { A1: 1 / 8, A2: 1, A3: 1 / 8, A4: 1 };
+
+export const profiles = Object.fromEntries(
+  Object.entries(curvesA).map(([k, arr]) => [k, lathePoints(arr, 24, scaleMap[k])])
+);
+
+/* ─────────────── B-series (Shape instances) ─────────────── */
+const createTriangle = () => {
+  const s = new THREE.Shape();
+  const r = 0.9;
+  const verts = [...Array(3)].map((_, i) => {
+    const θ = Math.PI / 2 + (i * 2 * Math.PI) / 3;
+    return V(r * Math.cos(θ), r * Math.sin(θ));
   });
-  return points;
-}
-
-// Exportar los perfiles generados
-export const profiles = {
-  A1: generatePointsFromBezier(bezierProfiles.A1),
-  A2: generatePointsFromBezier(bezierProfiles.A2),
-  A3: generatePointsFromBezier(bezierProfiles.A3),
-  A4: generatePointsFromBezier(bezierProfiles.A4)
+  verts.forEach((v, i) => {
+    const next = verts[(i + 1) % 3];
+    const mid  = V((v.x + next.x) / 2, (v.y + next.y) / 2);
+    const curve = new THREE.QuadraticBezierCurve3(v, mid, next);
+    curve.getPoints(20).forEach((p, j) =>
+      i === 0 && j === 0 ? s.moveTo(p.x, p.y) : s.lineTo(p.x, p.y)
+    );
+  });
+  s.closePath();
+  return s;
 };
 
-/* ────────── Formas planas para barrido (B-series) ────────── */
+const createStar = () => {
+  const s = new THREE.Shape();
+  const R = 0.85, r = 0.45, N = 8;
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const θo = (i * 2 * Math.PI) / N;
+    const θi = θo + Math.PI / N;
+    pts.push(V(R * Math.cos(θo), R * Math.sin(θo)));
+    pts.push(V(r * Math.cos(θi), r * Math.sin(θi)));
+  }
+  const cr = new THREE.CatmullRomCurve3(pts, true);
+  cr.getPoints(100).forEach((p, i) => (i ? s.lineTo(p.x, p.y) : s.moveTo(p.x, p.y)));
+  s.closePath();
+  return s;
+};
+
+const createRoundedSquare = () => {
+  const s = new THREE.Shape();
+  const L = 1.4,
+        r = 0.45,
+        w = 0.32,
+        d = 0.32,
+        bigW = 0.28,
+        bigD = 0.28;
+  const pts = [
+    V(-w / 2, L / 2), V(-bigW / 2, L / 2), V(-bigW / 2, L / 2 - bigD),
+    V(bigW / 2, L / 2 - bigD), V(bigW / 2, L / 2), V(w / 2, L / 2),
+    V(L / 2 - r / 2, L / 2), V(L / 2, L / 2 - r / 2),
+
+    V(L / 2, w / 2), V(L / 2, bigW / 2), V(L / 2 - bigD, bigW / 2),
+    V(L / 2 - bigD, -bigW / 2), V(L / 2, -bigW / 2), V(L / 2, -w / 2),
+    V(L / 2, -L / 2 + r / 2), V(L / 2 - r / 2, -L / 2),
+
+    V(w / 2, -L / 2), V(bigW / 2, -L / 2), V(bigW / 2, -L / 2 + bigD),
+    V(-bigW / 2, -L / 2 + bigD), V(-bigW / 2, -L / 2),
+    V(-w / 2, -L / 2), V(-L / 2 + r / 2, -L / 2), V(-L / 2, -L / 2 + r / 2),
+
+    V(-L / 2, -w / 2), V(-L / 2, -bigW / 2), V(-L / 2 + bigD, -bigW / 2),
+    V(-L / 2 + bigD, bigW / 2), V(-L / 2, bigW / 2), V(-L / 2, w / 2),
+    V(-L / 2, L / 2 - r / 2), V(-L / 2 + r / 2, L / 2)
+  ];
+  const cr = new THREE.CatmullRomCurve3(pts, true);
+  cr.getPoints(240).forEach((p, i) => (i ? s.lineTo(p.x, p.y) : s.moveTo(p.x, p.y)));
+  s.closePath();
+  return s;
+};
+
+const createCapsule = () => {
+  const s = new THREE.Shape();
+  const w = 0.9, h = 2.0, r = w / 2, n = 16;
+  const pts = [];
+  // Semicírculo superior
+  for (let i = 0; i <= n; i++) {
+    const θ = Math.PI * (i / n);
+    pts.push(V(r * Math.cos(θ), h / 2 - r + r * Math.sin(θ)));
+  }
+  // Semicírculo inferior
+  for (let i = 0; i <= n; i++) {
+    const θ = Math.PI + Math.PI * (i / n);
+    pts.push(V(r * Math.cos(θ), -h / 2 + r + r * Math.sin(θ)));
+  }
+  const cr = new THREE.CatmullRomCurve3(pts, true);
+  cr.getPoints(120).forEach((p, i) => (i ? s.lineTo(p.x, p.y) : s.moveTo(p.x, p.y)));
+  s.closePath();
+  return s;
+};
+
+const createCross = () => {
+  const s = new THREE.Shape();
+  const t = 0.32, w = 0.7;
+  const pts = [
+    V(-t, w), V(t, w), V(t, t), V(w, t), V(w, -t), V(t, -t),
+    V(t, -w), V(-t, -w), V(-t, -t), V(-w, -t), V(-w, t), V(-t, t)
+  ];
+  const cr = new THREE.CatmullRomCurve3(pts, true);
+  cr.getPoints(180).forEach((p, i) => (i ? s.lineTo(p.x, p.y) : s.moveTo(p.x, p.y)));
+  s.closePath();
+  return s;
+};
+
+// Export shapes instanciadas (no funciones)
 export const shapes = {
-  /* B1 – triángulo equilátero con curvas Bézier cuadráticas */
-  B1: (() => {
-    const s = new THREE.Shape();
-    const r = 0.9;  // radio del triángulo
-    const points = [];
-    
-    // Calcular los tres vértices del triángulo
-    const vertices = [];
-    for (let i = 0; i < 3; i++) {
-      const θ = Math.PI / 2 + i * (2 * Math.PI / 3);
-      vertices.push(new THREE.Vector3(
-        r * Math.cos(θ),
-        r * Math.sin(θ),
-        0
-      ));
-    }
-
-    // Crear las curvas Bézier cuadráticas entre cada par de vértices
-    for (let i = 0; i < 3; i++) {
-      const start = vertices[i];
-      const end = vertices[(i + 1) % 3];
-      
-      // Calcular el punto medio para usar como punto de control
-      const midPoint = new THREE.Vector3(
-        (start.x + end.x) / 2,
-        (start.y + end.y) / 2,
-        0
-      );
-
-      // Crear la curva Bézier cuadrática
-      const curve = new THREE.QuadraticBezierCurve3(
-        start,
-        midPoint,
-        end
-      );
-
-      // Obtener puntos de la curva
-      const curvePoints = curve.getPoints(20);
-      if (i === 0) {
-        s.moveTo(curvePoints[0].x, curvePoints[0].y);
-      }
-      curvePoints.forEach(point => {
-        s.lineTo(point.x, point.y);
-      });
-    }
-    
-    s.closePath();
-    return s;
-  })(),
-
-  /* B2 – estrella de 8 puntas suave */
-  B2: (() => {
-    const s = new THREE.Shape();
-    const R = 0.85;          // radio exterior
-    const r = 0.45;          // radio interior (aumentado de 0.35 a 0.65 para curvas más suaves)
-    const N = 8;
-    const points = [];
-    
-    for (let i = 0; i < N; i++) {
-      const θo = i * (2 * Math.PI / N);
-      const θi = θo + Math.PI / N;
-      
-      // Punto exterior
-      points.push(new THREE.Vector3(
-        R * Math.cos(θo),
-        R * Math.sin(θo),
-        0
-      ));
-      
-      // Punto interior
-      points.push(new THREE.Vector3(
-        r * Math.cos(θi),
-        r * Math.sin(θi),
-        0
-      ));
-    }
-    
-    // Crear curva Catmull-Rom cerrada
-    const curve = new THREE.CatmullRomCurve3(points, true);
-    const curvePoints = curve.getPoints(100);
-    s.moveTo(curvePoints[0].x, curvePoints[0].y);
-    curvePoints.forEach(point => {
-      s.lineTo(point.x, point.y);
-    });
-    s.closePath();
-    return s;
-  })(),
-
-  /* B3 – cuadrado con bordes redondeados y recortes grandes integrados en el contorno, usando Catmull-Rom */
-  B3: (() => {
-    const s = new THREE.Shape();
-    const L = 1.4;   // lado del cuadrado
-    const r = 0.45;  // radio de esquina
-    const w = 0.32;  // ancho del recorte grande
-    const d = 0.32;  // profundidad del recorte grande
-    const bigW = 0.28; // ancho del recorte cuadrado grande
-    const bigD = 0.28; // profundidad del recorte cuadrado grande
-    const points = [];
-
-    // --- Superior ---
-    points.push(new THREE.Vector3(-w/2, L/2, 0)); // extremo izquierdo recorte grande superior
-    points.push(new THREE.Vector3(-bigW/2, L/2, 0)); // extremo izquierdo recorte cuadrado grande superior
-    points.push(new THREE.Vector3(-bigW/2, L/2 - bigD, 0)); // fondo recorte cuadrado grande superior
-    points.push(new THREE.Vector3(bigW/2, L/2 - bigD, 0)); // fondo recorte cuadrado grande superior
-    points.push(new THREE.Vector3(bigW/2, L/2, 0)); // extremo derecho recorte cuadrado grande superior
-    points.push(new THREE.Vector3(w/2, L/2, 0)); // extremo derecho recorte grande superior
-    points.push(new THREE.Vector3(L/2 - r/2, L/2, 0)); // transición a esquina sup der
-    points.push(new THREE.Vector3(L/2, L/2 - r/2, 0)); // esquina sup der
-
-    // --- Derecha ---
-    points.push(new THREE.Vector3(L/2, w/2, 0)); // extremo superior recorte grande derecho
-    points.push(new THREE.Vector3(L/2, bigW/2, 0)); // extremo superior recorte cuadrado grande derecho
-    points.push(new THREE.Vector3(L/2 - bigD, bigW/2, 0)); // fondo recorte cuadrado grande derecho
-    points.push(new THREE.Vector3(L/2 - bigD, -bigW/2, 0)); // fondo recorte cuadrado grande derecho
-    points.push(new THREE.Vector3(L/2, -bigW/2, 0)); // extremo inferior recorte cuadrado grande derecho
-    points.push(new THREE.Vector3(L/2, -w/2, 0)); // extremo inferior recorte grande derecho
-    points.push(new THREE.Vector3(L/2, -L/2 + r/2, 0)); // transición a esquina inf der
-    points.push(new THREE.Vector3(L/2 - r/2, -L/2, 0)); // esquina inf der
-
-    // --- Inferior ---
-    points.push(new THREE.Vector3(w/2, -L/2, 0)); // extremo derecho recorte grande inferior
-    points.push(new THREE.Vector3(bigW/2, -L/2, 0)); // extremo derecho recorte cuadrado grande inferior
-    points.push(new THREE.Vector3(bigW/2, -L/2 + bigD, 0)); // fondo recorte cuadrado grande inferior
-    points.push(new THREE.Vector3(-bigW/2, -L/2 + bigD, 0)); // fondo recorte cuadrado grande inferior
-    points.push(new THREE.Vector3(-bigW/2, -L/2, 0)); // extremo izquierdo recorte cuadrado grande inferior
-    points.push(new THREE.Vector3(-w/2, -L/2, 0)); // extremo izquierdo recorte grande inferior
-    points.push(new THREE.Vector3(-L/2 + r/2, -L/2, 0)); // transición a esquina inf izq
-    points.push(new THREE.Vector3(-L/2, -L/2 + r/2, 0)); // esquina inf izq
-
-    // --- Izquierda ---
-    points.push(new THREE.Vector3(-L/2, -w/2, 0)); // extremo inferior recorte grande izquierdo
-    points.push(new THREE.Vector3(-L/2, -bigW/2, 0)); // extremo inferior recorte cuadrado grande izquierdo
-    points.push(new THREE.Vector3(-L/2 + bigD, -bigW/2, 0)); // fondo recorte cuadrado grande izquierdo
-    points.push(new THREE.Vector3(-L/2 + bigD, bigW/2, 0)); // fondo recorte cuadrado grande izquierdo
-    points.push(new THREE.Vector3(-L/2, bigW/2, 0)); // extremo superior recorte cuadrado grande izquierdo
-    points.push(new THREE.Vector3(-L/2, w/2, 0)); // extremo superior recorte grande izquierdo
-    points.push(new THREE.Vector3(-L/2, L/2 - r/2, 0)); // transición a esquina sup izq
-    points.push(new THREE.Vector3(-L/2 + r/2, L/2, 0)); // esquina sup izq
-
-    // Catmull-Rom cerrada para el contorno principal
-    const curve = new THREE.CatmullRomCurve3(points, true);
-    const curvePoints = curve.getPoints(240);
-    s.moveTo(curvePoints[0].x, curvePoints[0].y);
-    curvePoints.forEach(point => {
-      s.lineTo(point.x, point.y);
-    });
-    s.closePath();
-    return s;
-  })(),
-
-  /* B4 – píldora vertical (capsule) */
-  B4: (() => {
-    const w = 0.9, h = 2.0, r = w/2;
-    const s = new THREE.Shape();
-    const points = [];
-    const n = 12; // puntos por semicírculo
-    // Semicírculo superior (de derecha a izquierda, centro en (0, h/2 - r))
-    for (let i = 0; i <= n; i++) {
-      const theta = 0.0 + Math.PI * (i / n);
-      points.push(new THREE.Vector3(
-        r * Math.cos(theta),
-        (h/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-    // Lado izquierdo (de arriba a abajo)
-    points.push(new THREE.Vector3(-r, -h/2 + r, 0));
-    // Semicírculo inferior (de izquierda a derecha, centro en (0, -h/2 + r))
-    for (let i = 0; i <= n; i++) {
-      const theta = Math.PI + Math.PI * (i / n);
-      points.push(new THREE.Vector3(
-        r * Math.cos(theta),
-        (-h/2 + r) + r * Math.sin(theta),
-        0
-      ));
-    }
-    // Lado derecho (de abajo a arriba)
-    points.push(new THREE.Vector3(r, h/2 - r, 0));
-    // Catmull-Rom cerrada
-    const curve = new THREE.CatmullRomCurve3(points, true);
-    const curvePoints = curve.getPoints(120);
-    s.moveTo(curvePoints[0].x, curvePoints[0].y);
-    curvePoints.forEach(point => {
-      s.lineTo(point.x, point.y);
-    });
-    s.closePath();
-    return s;
-  })(),
-
-  /* B5 – cruz cuadrada (anterior B3) */
-  B5: (() => {
-    const s = new THREE.Shape();
-    // Parámetros de la cruz
-    const t = 0.32; // medio ancho del brazo
-    const w = 0.7;  // largo del brazo desde el centro
-    // Definir los puntos de la cruz (empezando arriba, sentido antihorario)
-    const points = [
-      new THREE.Vector3(-t, w, 0),   // Arriba izquierda
-      new THREE.Vector3(t, w, 0),    // Arriba derecha
-      new THREE.Vector3(t, t, 0),    // Centro derecha arriba
-      new THREE.Vector3(w, t, 0),    // Derecha arriba
-      new THREE.Vector3(w, -t, 0),   // Derecha abajo
-      new THREE.Vector3(t, -t, 0),   // Centro derecha abajo
-      new THREE.Vector3(t, -w, 0),   // Abajo derecha
-      new THREE.Vector3(-t, -w, 0),  // Abajo izquierda
-      new THREE.Vector3(-t, -t, 0),  // Centro izquierda abajo
-      new THREE.Vector3(-w, -t, 0),  // Izquierda abajo
-      new THREE.Vector3(-w, t, 0),   // Izquierda arriba
-      new THREE.Vector3(-t, t, 0),   // Centro izquierda arriba
-      new THREE.Vector3(-t, w, 0)    // Cierra la cruz
-    ];
-    // Catmull-Rom cerrada
-    const curve = new THREE.CatmullRomCurve3(points, true);
-    const curvePoints = curve.getPoints(180);
-    s.moveTo(curvePoints[0].x, curvePoints[0].y);
-    curvePoints.forEach(point => {
-      s.lineTo(point.x, point.y);
-    });
-    s.closePath();
-    return s;
-  })(),
+  B1: createTriangle(),
+  B2: createStar(),
+  B3: createRoundedSquare(),
+  B4: createCapsule(),
+  B5: createCross()
 };
 
-/* ────────── Trayectoria recta para barrido ────────── */
-export function sweepPathCatmull (h = 4) {
-  return new THREE.CatmullRomCurve3(
-    [ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, h, 0) ],
-    false, 'catmullrom', 0.5
-  );
-}
+/* ───────────────────────── Sweep path ───────────────────────────── */
+export const sweepPathCatmull = (h = 4) =>
+  new THREE.CatmullRomCurve3([V(0, 0, 0), V(0, h, 0)], false, "catmullrom", 0.5);
