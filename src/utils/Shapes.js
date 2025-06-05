@@ -61,35 +61,48 @@ const bezierProfiles = {
 
   /* A3 – base en punta + parte alta curva */
   A3: [
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0.2, 0, 0),
-      new THREE.Vector3(0.5, 0, 0),
-      new THREE.Vector3(0.75, 0, 0)
+    /* Tramo horizontal superior */
+    new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(0.000, 1.000, 0),  // ( 0 ,14)
+      new THREE.Vector3(0.214, 1.000, 0),  // (-3 ,14)
+      new THREE.Vector3(0.429, 1.000, 0)   // (-6 ,14)
     ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.75, 0, 0),
-      new THREE.Vector3(1.0, 0, 0),
-      new THREE.Vector3(0.5, 1.0, 0),
-      new THREE.Vector3(0.35, 1.0, 0)
+  
+    /* Bajada vertical suave */
+    new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(0.429, 1.000, 0),  // (-6 ,14)
+      new THREE.Vector3(0.429, 0.929, 0),  // (-6 ,13)
+      new THREE.Vector3(0.429, 0.857, 0)   // (-6 ,12)
     ),
+  
+    /* Primer redondeo ancho-estrecho */
     new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.35, 1.0, 0),
-      new THREE.Vector3(0.2, 1.0, 0),
-      new THREE.Vector3(0.35, 1.3, 0),
-      new THREE.Vector3(0.35, 1.3, 0)
+      new THREE.Vector3(0.429, 0.857, 0),  // (-6 ,12)
+      new THREE.Vector3(0.071, 0.786, 0),  // (-1 ,11)
+      new THREE.Vector3(0.214, 0.714, 0),  // (-3 ,10)
+      new THREE.Vector3(0.286, 0.500, 0)   // (-4 , 7)
     ),
+  
+    /* Segundo redondeo estrecho-ancho */
     new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.35, 1.3, 0),
-      new THREE.Vector3(0.35, 1.3, 0),
-      new THREE.Vector3(0.7, 1.6, 0),
-      new THREE.Vector3(0.9, 1.6, 0)
+      new THREE.Vector3(0.286, 0.500, 0),  // (-4 , 7)
+      new THREE.Vector3(0.214, 0.286, 0),  // (-3 , 4)
+      new THREE.Vector3(0.071, 0.214, 0),  // (-1 , 3)
+      new THREE.Vector3(0.429, 0.143, 0)   // (-6 , 2)
     ),
-    new THREE.CubicBezierCurve3(
-      new THREE.Vector3(0.9, 1.6, 0),
-      new THREE.Vector3(1.1, 1.6, 0),
-      new THREE.Vector3(1.0, 2.5, 0),
-      new THREE.Vector3(0, 2.5, 0)
+  
+    /* Bajada vertical a la base */
+    new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(0.429, 0.143, 0),  // (-6 , 2)
+      new THREE.Vector3(0.429, 0.071, 0),  // (-6 , 1)
+      new THREE.Vector3(0.429, 0.000, 0)   // (-6 , 0)
+    ),
+  
+    /* Tramo horizontal inferior de vuelta al eje */
+    new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(0.429, 0.000, 0),  // (-6 , 0)
+      new THREE.Vector3(0.214, 0.000, 0),  // (-3 , 0)
+      new THREE.Vector3(0.000, 0.000, 0)   // ( 0 , 0)
     )
   ],
 
@@ -163,17 +176,52 @@ export const profiles = {
 
 /* ────────── Formas planas para barrido (B-series) ────────── */
 export const shapes = {
-  /* B1 – triángulo equilátero puro */
+  /* B1 – triángulo equilátero con curvas Bézier cuadráticas */
   B1: (() => {
     const s = new THREE.Shape();
-    const r = 0.9;
+    const r = 0.9;  // radio del triángulo
+    const points = [];
+    
+    // Calcular los tres vértices del triángulo
+    const vertices = [];
     for (let i = 0; i < 3; i++) {
       const θ = Math.PI / 2 + i * (2 * Math.PI / 3);
-      const x = r * Math.cos(θ);
-      const y = r * Math.sin(θ);
-      if (i === 0) s.moveTo(x, y);
-      else s.lineTo(x, y);
+      vertices.push(new THREE.Vector3(
+        r * Math.cos(θ),
+        r * Math.sin(θ),
+        0
+      ));
     }
+
+    // Crear las curvas Bézier cuadráticas entre cada par de vértices
+    for (let i = 0; i < 3; i++) {
+      const start = vertices[i];
+      const end = vertices[(i + 1) % 3];
+      
+      // Calcular el punto medio para usar como punto de control
+      const midPoint = new THREE.Vector3(
+        (start.x + end.x) / 2,
+        (start.y + end.y) / 2,
+        0
+      );
+
+      // Crear la curva Bézier cuadrática
+      const curve = new THREE.QuadraticBezierCurve3(
+        start,
+        midPoint,
+        end
+      );
+
+      // Obtener puntos de la curva
+      const curvePoints = curve.getPoints(20);
+      if (i === 0) {
+        s.moveTo(curvePoints[0].x, curvePoints[0].y);
+      }
+      curvePoints.forEach(point => {
+        s.lineTo(point.x, point.y);
+      });
+    }
+    
     s.closePath();
     return s;
   })(),
@@ -182,7 +230,7 @@ export const shapes = {
   B2: (() => {
     const s = new THREE.Shape();
     const R = 0.85;          // radio exterior
-    const r = 0.35;          // radio interior
+    const r = 0.45;          // radio interior (aumentado de 0.35 a 0.65 para curvas más suaves)
     const N = 8;
     const points = [];
     
@@ -216,7 +264,7 @@ export const shapes = {
     return s;
   })(),
 
-  /* B3 – cruz ancha con esquinas redondeadas y muescas cuadradas centradas, contorno Catmull-Rom + agujeros */
+  /* B3 – cruz ancha con esquinas redondeadas y muescas cuadradas centradas, contorno Catmull-Rom */
   B3: (() => {
     const s = new THREE.Shape();
     // Parámetros
@@ -226,44 +274,13 @@ export const shapes = {
     const d = 0.32;  // profundidad de muesca
     const arcPoints = 6; // puntos por arco
     const points = [];
+
     // Comenzar en la parte superior, lado derecho de la muesca superior
     points.push(new THREE.Vector3(w/2, L/2, 0));
-    // Esquina superior derecha (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = Math.PI/2 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        (L/2 - r) + r * Math.cos(theta),
-        (L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-    // Lado derecho superior hasta muesca derecha
-    points.push(new THREE.Vector3(L/2, w/2, 0));
-    points.push(new THREE.Vector3(L/2, -w/2, 0));
-    // Esquina inferior derecha (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = 0 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        (L/2 - r) + r * Math.cos(theta),
-        -(L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-    // Lado inferior derecho hasta muesca inferior
-    points.push(new THREE.Vector3(w/2, -L/2, 0));
-    points.push(new THREE.Vector3(-w/2, -L/2, 0));
-    // Esquina inferior izquierda (arco)
-    for (let i = 0; i <= arcPoints; i++) {
-      const theta = -Math.PI/2 - (Math.PI/2) * (i / arcPoints);
-      points.push(new THREE.Vector3(
-        -(L/2 - r) + r * Math.cos(theta),
-        -(L/2 - r) + r * Math.sin(theta),
-        0
-      ));
-    }
-    // Lado izquierdo inferior hasta muesca izquierda
-    points.push(new THREE.Vector3(-L/2, -w/2, 0));
-    points.push(new THREE.Vector3(-L/2, w/2, 0));
+    points.push(new THREE.Vector3(w/2, L/2 - d, 0));
+    points.push(new THREE.Vector3(-w/2, L/2 - d, 0));
+    points.push(new THREE.Vector3(-w/2, L/2, 0));
+
     // Esquina superior izquierda (arco)
     for (let i = 0; i <= arcPoints; i++) {
       const theta = -Math.PI - (Math.PI/2) * (i / arcPoints);
@@ -273,9 +290,55 @@ export const shapes = {
         0
       ));
     }
-    // Lado superior izquierdo hasta muesca superior
-    points.push(new THREE.Vector3(-w/2, L/2, 0));
-    points.push(new THREE.Vector3(w/2, L/2, 0)); // Cierra
+
+    // Lado izquierdo superior hasta muesca izquierda
+    points.push(new THREE.Vector3(-L/2, w/2, 0));
+    points.push(new THREE.Vector3(-L/2 + d, w/2, 0));
+    points.push(new THREE.Vector3(-L/2 + d, -w/2, 0));
+    points.push(new THREE.Vector3(-L/2, -w/2, 0));
+
+    // Esquina inferior izquierda (arco)
+    for (let i = 0; i <= arcPoints; i++) {
+      const theta = -Math.PI/2 - (Math.PI/2) * (i / arcPoints);
+      points.push(new THREE.Vector3(
+        -(L/2 - r) + r * Math.cos(theta),
+        -(L/2 - r) + r * Math.sin(theta),
+        0
+      ));
+    }
+
+    // Lado inferior izquierdo hasta muesca inferior
+    points.push(new THREE.Vector3(-w/2, -L/2, 0));
+    points.push(new THREE.Vector3(-w/2, -L/2 + d, 0));
+    points.push(new THREE.Vector3(w/2, -L/2 + d, 0));
+    points.push(new THREE.Vector3(w/2, -L/2, 0));
+
+    // Esquina inferior derecha (arco)
+    for (let i = 0; i <= arcPoints; i++) {
+      const theta = 0 - (Math.PI/2) * (i / arcPoints);
+      points.push(new THREE.Vector3(
+        (L/2 - r) + r * Math.cos(theta),
+        -(L/2 - r) + r * Math.sin(theta),
+        0
+      ));
+    }
+
+    // Lado derecho inferior hasta muesca derecha
+    points.push(new THREE.Vector3(L/2, -w/2, 0));
+    points.push(new THREE.Vector3(L/2 - d, -w/2, 0));
+    points.push(new THREE.Vector3(L/2 - d, w/2, 0));
+    points.push(new THREE.Vector3(L/2, w/2, 0));
+
+    // Esquina superior derecha (arco)
+    for (let i = 0; i <= arcPoints; i++) {
+      const theta = Math.PI/2 - (Math.PI/2) * (i / arcPoints);
+      points.push(new THREE.Vector3(
+        (L/2 - r) + r * Math.cos(theta),
+        (L/2 - r) + r * Math.sin(theta),
+        0
+      ));
+    }
+
     // Catmull-Rom cerrada
     const curve = new THREE.CatmullRomCurve3(points, true);
     const curvePoints = curve.getPoints(180);
@@ -284,41 +347,6 @@ export const shapes = {
       s.lineTo(point.x, point.y);
     });
     s.closePath();
-    // Agregar agujeros cuadrados centrados en cada lado
-    const cutW = 0.32; // ancho del recorte cuadrado
-    const cutD = 0.32; // profundidad del recorte cuadrado
-    // Superior (corta el borde superior)
-    const cutTop = new THREE.Path();
-    cutTop.moveTo(-cutW/2, L/2);
-    cutTop.lineTo(cutW/2, L/2);
-    cutTop.lineTo(cutW/2, L/2 - cutD);
-    cutTop.lineTo(-cutW/2, L/2 - cutD);
-    cutTop.lineTo(-cutW/2, L/2);
-    s.holes.push(cutTop);
-    // Inferior (corta el borde inferior)
-    const cutBot = new THREE.Path();
-    cutBot.moveTo(-cutW/2, -L/2 + cutD);
-    cutBot.lineTo(cutW/2, -L/2 + cutD);
-    cutBot.lineTo(cutW/2, -L/2);
-    cutBot.lineTo(-cutW/2, -L/2);
-    cutBot.lineTo(-cutW/2, -L/2 + cutD);
-    s.holes.push(cutBot);
-    // Derecha (corta el borde derecho)
-    const cutRight = new THREE.Path();
-    cutRight.moveTo(L/2, -cutW/2);
-    cutRight.lineTo(L/2, cutW/2);
-    cutRight.lineTo(L/2 - cutD, cutW/2);
-    cutRight.lineTo(L/2 - cutD, -cutW/2);
-    cutRight.lineTo(L/2, -cutW/2);
-    s.holes.push(cutRight);
-    // Izquierda (corta el borde izquierdo)
-    const cutLeft = new THREE.Path();
-    cutLeft.moveTo(-L/2 + cutD, -cutW/2);
-    cutLeft.lineTo(-L/2 + cutD, cutW/2);
-    cutLeft.lineTo(-L/2, cutW/2);
-    cutLeft.lineTo(-L/2, -cutW/2);
-    cutLeft.lineTo(-L/2 + cutD, -cutW/2);
-    s.holes.push(cutLeft);
     return s;
   })(),
 
@@ -396,7 +424,7 @@ export const shapes = {
 };
 
 /* ────────── Trayectoria recta para barrido ────────── */
-export function sweepPathCatmull (h = 2) {
+export function sweepPathCatmull (h = 4) {
   return new THREE.CatmullRomCurve3(
     [ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, h, 0) ],
     false, 'catmullrom', 0.5

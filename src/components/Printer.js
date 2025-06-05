@@ -4,8 +4,8 @@ import { profiles, shapes } from '../utils/Shapes.js';
 
 /**
  * Impresora 3‑D con animación layer‑by‑layer (sin escalado de la pieza).
- * El objeto se “revela” mediante un plano de recorte dinámico; la tapa
- * verde (capa de impresión) se ha elevado 5 cm para mayor holgura.
+ * El objeto se "revela" mediante un plano de recorte dinámico; la tapa
+ * verde (capa de impresión) se ha elevado 5 cm para mayor holgura.
  * ------------------------------------------------------------------
  * 🔸  renderer.localClippingEnabled = true
  * ------------------------------------------------------------------
@@ -29,7 +29,7 @@ export class Printer {
 
     /* ─ offsets y clipping ─ */
     this.clipPlaneOffset  = 0.0005; // evita z‑fighting con la pieza
-    this.printPlaneLift   = 0.5;   // +5 cm de separación visual
+    this.printPlaneLift   = 0.15;   // +15 cm de separación visual
     this.clipPlane        = new THREE.Plane(
       new THREE.Vector3(0, -1, 0),
       this.buildPlateY + this.clipPlaneOffset
@@ -140,7 +140,7 @@ export class Printer {
       const raw = profiles[form];
       if (!raw) { console.warn(`Perfil ${form} no existe`); return; }
       const maxY = raw.reduce((m, [, y]) => Math.max(m, y), 0);
-      geo = new THREE.LatheGeometry(raw.map(([x, y]) => new THREE.Vector2(x * S, (y / maxY) * height)), 64);
+      geo = new THREE.LatheGeometry(raw.map(([x, y]) => new THREE.Vector2(Math.abs(x) * S, (y / maxY) * height)), 64);
     } else {
       const shape = shapes[form];
       if (!shape) { console.warn(`Shape ${form} no existe`); return; }
