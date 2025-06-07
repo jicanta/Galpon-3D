@@ -1,8 +1,5 @@
 import * as THREE from "three";
 
-/* ────────────────────── Helpers ─────────────────────── */
-// V  = shorthand de THREE.Vector3
-// QC = quadratic Bezier, CC = cubic Bezier
 const V  = (x, y, z = 0)    => new THREE.Vector3(x, y, z);
 const QC = (p0, p1, p2)     => new THREE.QuadraticBezierCurve3(p0, p1, p2);
 const CC = (p0, p1, p2, p3) => new THREE.CubicBezierCurve3   (p0, p1, p2, p3);
@@ -22,7 +19,7 @@ function lathePoints(curves, segments = 24, scale = 1) {
       raw.push({ y: p.y * scale, r: Math.abs(p.x) * scale });
     }
   });
-  // Agrupa radios por Y usando key redondeada
+  
   const byY = new Map();
   raw.forEach(({ y, r }) => {
     const k = y.toFixed(6);
@@ -35,9 +32,7 @@ function lathePoints(curves, segments = 24, scale = 1) {
   return pts;
 }
 
-/* ──────────────── A-series (declaración de curvas) ──────────────── */
 const curvesA = {
-  // Coordenadas «full size» (x de 0 a −6, y 0 → 14)
   A1: [
     QC(V(0, 14),  V(-3, 14),  V(-6, 14)),
     QC(V(-6,14),  V(-6, 13),  V(-6, 12)),
@@ -47,48 +42,39 @@ const curvesA = {
     QC(V(-6, 0),  V(-3, 0),   V(0, 0))
   ],
 
-  // A2 y A4 ya vienen en mini-escala (≈ 1 unidad de alto)
   A2: [
-    CC(V(0, 0),   V(0.2, 0),  V(0.5, 0),  V(0.65, 0)),
-    CC(V(0.65,0), V(0.8, 0),  V(0.7, 0.5),V(0.75,0.5)),
-    CC(V(0.75,0.5),V(0.8,0.5),V(0.6,1.5), V(0.65,1.5)),
-    CC(V(0.65,1.5),V(0.7,1.5),V(0.3,2.5), V(0, 2.5))
+    CC(V(-4, 28), V(-5, 27), V(-6.5, 25), V(-8, 24)),
+    CC(V(-8, 24), V(-8, 20), V(-6, 17), V(-4, 14)),
+    QC(V(-4, 14), V(-5, 11), V(-6, 8)),
+    QC(V(-6, 8), V(-8, 4), V(-8, 1)),
+    QC(V(-8, 1), V(-4, 0.5), V(0, 0))
   ],
 
   A3: [
-    // BASE horizontal
-    QC(V(0, 0), V(-2.5, 0), V(-5, 0)),
-    // PIE inclinado
-    QC(V(-5, 0), V(-6, 1.5), V(-4, 2.5)),
-    // ESCALÓN recto
-    QC(V(-4, 2.5), V(-4, 3.0), V(-4, 3.5)),
-    // CUERPO vertical largo
-    QC(V(-4, 3.5), V(-4, 8.5), V(-4, 12)),
-    // HOMBRO curvo hacia adentro
-    CC(V(-4, 12), V(-3.5, 12.5), V(-2.5, 13.5), V(-2, 14)),
-    // REMATE superior curvo
-    QC(V(-2, 14), V(-1, 14.5), V(0, 14.5))
+    QC(V(-4, 23), V(-5, 21), V(-8, 21)),
+    QC(V(-8, 21), V(-11, 21), V(-11, 18)),
+    QC(V(-11, 18), V(-11, 15), V(-11, 12)),
+    QC(V(-11, 12), V(-11, 8), V(-3, 7)),
+    QC(V(-3, 7), V(-3, 5.5), V(-3, 4)),
+    QC(V(-3, 4), V(-7.5, 2), V(-12, 0)),
+    QC(V(-12, 0), V(-6, 0), V(0, 0))
   ],
 
   A4: [
-    CC(V(0, 0),   V(0.2,0),   V(0.4,0),  V(0.6,0)),
-    CC(V(0.6, 0), V(0.8,0),   V(0.65,0.6),V(0.7,0.6)),
-    CC(V(0.7,0.6),V(0.75,0.6),V(0.9,0.8), V(1.1,0.8)),
-    CC(V(1.1,0.8),V(1.3,0.8), V(1.0,1.4), V(1.05,1.4)),
-    CC(V(1.05,1.4),V(1.1,1.4),V(0.8,1.6), V(0.7,1.6)),
-    CC(V(0.7,1.6), V(0.6,1.6),V(0.6,1.8), V(0.6,1.8)),
-    CC(V(0.6,1.8), V(0.6,1.8),V(0.3,2.3), V(0, 2.3))
+    CC(V(-1, 30), V(-5, 29), V(-7, 27), V(-8, 24)),
+    CC(V(-8, 24), V(-8, 21), V(-9, 18), V(-19, 15)),
+    CC(V(-19, 15), V(-9, 13), V(-5, 11), V(-5, 7)),
+    CC(V(-5,  7), V(-10, 6), V(-11, 3), V(-10, 1)),
+    QC(V(-10, 1), V(-5, 0.5), V(0, 0))
   ]
 };
 
-// Escala individual (A1 y A3 reducidas 1/8)
-const scaleMap = { A1: 1 / 8, A2: 1, A3: 1 / 8, A4: 1 };
+const scaleMap = { A1: 1 / 8, A2: 1 / 12, A3: 1 / 12, A4: 1 / 14 };
 
 export const profiles = Object.fromEntries(
   Object.entries(curvesA).map(([k, arr]) => [k, lathePoints(arr, 24, scaleMap[k])])
 );
 
-/* ─────────────── B-series (Shape instances) ─────────────── */
 const createTriangle = () => {
   const s = new THREE.Shape();
   const r = 0.9;
@@ -188,7 +174,6 @@ const createCross = () => {
   return s;
 };
 
-// Export shapes instanciadas (no funciones)
 export const shapes = {
   B1: createTriangle(),
   B2: createStar(),
@@ -197,6 +182,5 @@ export const shapes = {
   B5: createCross()
 };
 
-/* ───────────────────────── Sweep path ───────────────────────────── */
 export const sweepPathCatmull = (h = 4) =>
   new THREE.CatmullRomCurve3([V(0, 0, 0), V(0, h, 0)], false, "catmullrom", 0.5);

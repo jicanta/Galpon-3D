@@ -1,4 +1,3 @@
-// src/printer/Printer.js
 import * as THREE from 'three';
 import { profiles, shapes } from '../utils/Shapes.js';
 
