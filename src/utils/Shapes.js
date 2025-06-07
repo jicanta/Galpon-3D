@@ -9,7 +9,7 @@ const CC = (p0, p1, p2, p3) => new THREE.CubicBezierCurve3   (p0, p1, p2, p3);
 
 /**
  * Convierte un array de curvas (2D en XY) a puntos para LatheGeometry.
- *  • Muestrea “segments” puntos por curva.
+ *  • Muestrea "segments" puntos por curva.
  *  • Usa |x| como radio, evitando winding inverso.
  *  • Si varias muestras comparten la misma cota Y, conserva el radio máximo.
  *  • Ordena bottom → top y fuerza radio 0 en la base y en la tapa.
@@ -39,16 +39,12 @@ function lathePoints(curves, segments = 24, scale = 1) {
 const curvesA = {
   // Coordenadas «full size» (x de 0 a −6, y 0 → 14)
   A1: [
-    CC(V(0, 14),   V(-2, 14),  V(-4, 14),  V(-6, 14)),
-    CC(V(-6, 14),  V(-6, 13.3),V(-6, 12.7),V(-6, 12)),
-    CC(V(-6, 12),  V(-6, 11),  V(-4.5,11), V(-1, 11)),
-    CC(V(-1, 11),  V(-2.2,10.5),V(-3.1,10),V(-3.3,9.3)),
-    CC(V(-3.3,9.3),V(-4.2,8),  V(-4.5,7.2),V(-4, 7)),
-    CC(V(-4, 7),   V(-3.4,5.8),V(-2.7,4.8),V(-3, 4)),
-    CC(V(-3, 4),   V(-2.3,3.6),V(-1.4,3.3),V(-1, 3)),
-    CC(V(-1, 3),   V(-3.8,2.5),V(-5.5,2.3),V(-6, 2)),
-    CC(V(-6, 2),   V(-6, 1.3), V(-6, 0.7), V(-6, 0)),
-    CC(V(-6, 0),   V(-4, 0),   V(-2, 0),   V(0, 0))
+    QC(V(0, 14),  V(-3, 14),  V(-6, 14)),
+    QC(V(-6,14),  V(-6, 13),  V(-6, 12)),
+    CC(V(-6,12),  V(-1,11),   V(-3,10),  V(-4, 7)),
+    CC(V(-4, 7),  V(-3, 4),   V(-1, 3),  V(-6, 2)),
+    QC(V(-6, 2),  V(-6, 1),   V(-6, 0)),
+    QC(V(-6, 0),  V(-3, 0),   V(0, 0))
   ],
 
   // A2 y A4 ya vienen en mini-escala (≈ 1 unidad de alto)
@@ -60,12 +56,18 @@ const curvesA = {
   ],
 
   A3: [
-    QC(V(0, 14),  V(-3, 14),  V(-6, 14)),
-    QC(V(-6,14),  V(-6, 13),  V(-6, 12)),
-    CC(V(-6,12),  V(-1,11),   V(-3,10),  V(-4, 7)),
-    CC(V(-4, 7),  V(-3, 4),   V(-1, 3),  V(-6, 2)),
-    QC(V(-6, 2),  V(-6, 1),   V(-6, 0)),
-    QC(V(-6, 0),  V(-3, 0),   V(0, 0))
+    // BASE horizontal
+    QC(V(0, 0), V(-2.5, 0), V(-5, 0)),
+    // PIE inclinado
+    QC(V(-5, 0), V(-6, 1.5), V(-4, 2.5)),
+    // ESCALÓN recto
+    QC(V(-4, 2.5), V(-4, 3.0), V(-4, 3.5)),
+    // CUERPO vertical largo
+    QC(V(-4, 3.5), V(-4, 8.5), V(-4, 12)),
+    // HOMBRO curvo hacia adentro
+    CC(V(-4, 12), V(-3.5, 12.5), V(-2.5, 13.5), V(-2, 14)),
+    // REMATE superior curvo
+    QC(V(-2, 14), V(-1, 14.5), V(0, 14.5))
   ],
 
   A4: [

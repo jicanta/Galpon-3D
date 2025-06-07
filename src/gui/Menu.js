@@ -17,6 +17,16 @@ export function initGUI (printer, scene) {
       'B1','B2','B3','B4', 'B5'])
      .name('Forma').onChange(refresh);
 
+  printerFolder.add(p,'material', {
+      Mate: 'matte',
+      Brillante: 'shiny',
+      Metálico: 'metallic',
+      Plástico: 'plastic',
+      Vidrio: 'glass'
+    }).name('Material').onChange(refresh);
+
+  printerFolder.add(p,'speed', 0.1, 2, 0.05).name('Velocidad').onChange(refresh);
+
   printerFolder.add(p,'height',0.5,3,0.1).name('Altura').onChange(refresh);
   printerFolder.add(p,'twist',0,360,10).name('Torsión (°)').onChange(refresh);
   printerFolder.addColor(p, 'color').name('Color').onChange(refresh);

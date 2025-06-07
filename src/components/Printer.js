@@ -58,8 +58,17 @@ export class Printer {
       form  : 'A1',
       height: 2,
       twist : 0,
-      color : '#8e9eb9'
+      color : '#8e9eb9',
+      material: 'matte',
+      speed: 0.5
     };
+
+    // Luz direccional pequeña para resaltar el objeto impreso
+    this.miniLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    this.miniLight.position.set(1.5, 3, 2);
+    this.miniLight.target.position.set(0, 1, 0);
+    this.root.add(this.miniLight);
+    this.root.add(this.miniLight.target);
   }
 
   /* ╔═ chasis estático ═╗ */
@@ -132,7 +141,7 @@ export class Printer {
       this.obj = null;
     }
 
-    const { mode, form, height, twist, color } = this.params;
+    const { mode, form, height, twist, color, material } = this.params;
     const S = this.scale;
     let geo;
 
@@ -161,14 +170,24 @@ export class Printer {
       pos.needsUpdate = true;
     }
 
+    // Presets de materiales
+    const materialPresets = {
+      matte:    { metalness: 0.1, roughness: 0.8, opacity: 1 },
+      shiny:    { metalness: 0.7, roughness: 0.2, opacity: 1 },
+      metallic: { metalness: 1.0, roughness: 0.3, opacity: 1 },
+      plastic:  { metalness: 0.0, roughness: 0.4, opacity: 1 },
+      glass:    { metalness: 0.2, roughness: 0.05, opacity: 0.5, transparent: true },
+    };
+    const preset = materialPresets[material] || materialPresets.matte;
+
     const mat = new THREE.MeshStandardMaterial({
       color,
-      metalness : 0.25,
-      roughness : 0.4,
+      metalness : preset.metalness,
+      roughness : preset.roughness,
+      opacity   : preset.opacity,
+      transparent: preset.transparent || false,
       clippingPlanes: [this.clipPlane],
-      clipShadows : true,
-      transparent: false,
-      opacity: 1
+      clipShadows : true
     });
 
     this.obj = new THREE.Mesh(geo, mat);
@@ -184,6 +203,8 @@ export class Printer {
   /* ╔═ animación por frame ═╗ */
   update (dt) {
     if (!this.obj) return;
+
+    this.speed = this.params.speed;
 
     const h = this.params.height;
     this.t  = Math.min(this.t + (this.speed * dt) / h, 1);

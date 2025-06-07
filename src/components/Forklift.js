@@ -7,8 +7,8 @@ export class Forklift {
     this.wheelR  = 0.55;          // radio rueda
     this.speed   = 10;             // m / s avance/retroceso
     this.turnSpd = Math.PI;       // rad / s giro
-    this.forkMax = 2.5;           // altura máx. horquilla
-    this.forkSpd = 1;             // velocidad elevación
+    this.forkMax = 6.0;           // altura máx. horquilla (aumentado de 2.5 a 6.0)
+    this.forkSpd = 1.5;           // velocidad elevación (aumentado de 1.0 a 1.5)
 
     /* nodo raíz y estado */
     this.root    = new THREE.Group();
@@ -141,19 +141,19 @@ export class Forklift {
     this.mast.position.set(0, 0.7, 1.6);
     this.root.add(this.mast);
 
-    const railGeo = new THREE.BoxGeometry(0.12, 3.4, 0.12);
+    const railGeo = new THREE.BoxGeometry(0.12, 6.4, 0.12);
     const railMat = new THREE.MeshStandardMaterial({ color: 0xcfd4f3 });
     [-0.3, 0.3].forEach(x => {
       const r = new THREE.Mesh(railGeo, railMat);
-      r.position.set(x, 1.7, 0);
+      r.position.set(x, 3.2, 0);
       this.mast.add(r);
     });
 
     const braceGeo = new THREE.BoxGeometry(0.7, 0.12, 0.12);
     const braceMat = new THREE.MeshStandardMaterial({ color: 0xd64893 });
-    [0.25, 1.8, 3.3].forEach(y => {
+    [0.25, 3.2, 6.2].forEach(y => {
       const b = new THREE.Mesh(braceGeo, braceMat);
-      b.position.set(0, y, 0.1);   // adelantado 10 cm para evitar z-fighting
+      b.position.set(0, y, 0.1);
       this.mast.add(b);
     });
 

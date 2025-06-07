@@ -21,7 +21,6 @@ class HUD {
   set (data) {
     const { curve, mode, form, height, twist } = data;
     this.el.innerHTML =
-      `<b>Curva:</b> ${curve} &nbsp;|&nbsp; ` +
       `<b>Tipo:</b> ${mode} &nbsp;|&nbsp; ` +
       `<b>Forma:</b> ${form}<br>` +
       `<b>Altura:</b> ${height.toFixed(1)} &nbsp; ` +

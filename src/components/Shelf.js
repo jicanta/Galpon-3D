@@ -7,10 +7,10 @@ export class Shelf {
     this.levels     = 2;     // SOLO 2 estantes (medio y alto)
     this.slotW      = 2.5;   // ancho
     this.depth      = 2.0;   // fondo
-    this.offsetY    = 1.5;   // altura del 1.er estante
-    this.levelSpan  = 2.9;   // distancia entre estantes  → hueco vertical mayor
+    this.offsetY    = 2.5;   // altura del 1.er estante (aumentado de 1.5 a 2.0)
+    this.levelSpan  = 3.5;   // distancia entre estantes (aumentado de 2.9 a 3.5)
     this.hGap       = 0.12;  // holgura lateral
-    this.vGap       = 0.25;  // holgura vertical
+    this.vGap       = 0.0;  // holgura vertical (aumentado de 0.25 a 0.35)
 
     /* ───────── raíz ───────── */
     this.root = new THREE.Group();
@@ -227,6 +227,10 @@ export class Shelf {
   hideHighlight () { this.highlight.visible = false; }
 
   center () {
-    return new THREE.Vector3().setFromMatrixPosition(this.root.matrixWorld);
+    // Centro geométrico constante de la estantería
+    const x = this.root.position.x;
+    const y = this.offsetY + (this.levels - 1) * this.levelSpan / 2;
+    const z = this.root.position.z;
+    return new THREE.Vector3(x, y, z);
   }
 }
