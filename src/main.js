@@ -17,8 +17,7 @@ if (globalThis.__renderer__) {
   renderer = globalThis.__renderer__;
 } else {
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = false;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -51,25 +50,14 @@ scene.lights.ambient = ambient;
 // Luz direccional principal (como el sol)
 const dir = new THREE.DirectionalLight(0xffffff, 1.0);
 dir.position.set(6, 12, 6);
-dir.castShadow = true;
-dir.shadow.mapSize.width = 2048;
-dir.shadow.mapSize.height = 2048;
-dir.shadow.camera.near = 0.5;
-dir.shadow.camera.far = 50;
-dir.shadow.camera.left = -20;
-dir.shadow.camera.right = 20;
-dir.shadow.camera.top = 20;
-dir.shadow.camera.bottom = -20;
-dir.shadow.bias = -0.0001;
+dir.castShadow = false;
 scene.add(dir);
 scene.lights.directional = dir;
 
 // Luz puntual principal
 const pt = new THREE.PointLight(0xfff0e0, 0.5, 50, 2);
 pt.position.set(0, 6, -2);
-pt.castShadow = true;
-pt.shadow.mapSize.width = 1024;
-pt.shadow.mapSize.height = 1024;
+pt.castShadow = false;
 scene.add(pt);
 scene.lights.point = pt;
 
@@ -84,7 +72,7 @@ const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
   new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.8 })
 );
-floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = false; scene.add(floor);
 
 const grid = new THREE.GridHelper(200, 40, 0xffffff, 0x666666);
 grid.position.y = 0.001; grid.material.transparent = true; grid.material.opacity = 0.25;

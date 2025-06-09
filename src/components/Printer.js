@@ -77,7 +77,7 @@ export class Printer {
       new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.35 })
     );
     base.position.y = 0.3;
-    base.receiveShadow = true;
+    base.receiveShadow = false;
     this.root.add(base);
 
     const plate = new THREE.Mesh(
@@ -91,7 +91,7 @@ export class Printer {
       })
     );
     plate.position.y = 0.63;
-    plate.receiveShadow = true;
+    plate.receiveShadow = false;
     this.buildPlateY = plate.position.y + 0.025;
     this.root.add(plate);
   }
@@ -192,7 +192,7 @@ export class Printer {
     this.obj = new THREE.Mesh(geo, mat);
     geo.computeBoundingBox();
     this.obj.position.set(0, this.buildPlateY - geo.boundingBox.min.y, 0);
-    this.obj.castShadow = this.obj.receiveShadow = true;
+    this.obj.castShadow = this.obj.receiveShadow = false;
     this.root.add(this.obj);
 
     this.t = 0;
