@@ -1,4 +1,3 @@
-/* ------------ imports ------------ */
 import * as THREE from 'three';
 import { Forklift }      from './components/Forklift.js';
 import { Printer }       from './components/Printer.js';
@@ -6,7 +5,6 @@ import { Shelf }         from './components/Shelf.js';
 import { CameraManager } from './logic/CameraManager.js';
 import { Input }         from './logic/Input.js';
 import { initGUI }       from './gui/Menu.js';
-import { hud }           from './hud.js';
 
 /* ------------ escena & renderer ------------ */
 const scene = new THREE.Scene();
@@ -86,7 +84,7 @@ forklift.setEnvironment(printer, shelf);
 camManager.setTargets(printer, shelf);
 
 /* ------------ GUI ------------ */
-initGUI(printer, scene);                // Pasamos la escena al GUI
+initGUI(printer, scene);                
 
 /* ------------ input ------------ */
 const input = new Input();

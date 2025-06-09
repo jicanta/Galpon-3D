@@ -29,5 +29,4 @@ class HUD {
   }
 }
 
-/* instancia única */
 export const hud = new HUD();
