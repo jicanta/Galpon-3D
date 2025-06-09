@@ -44,12 +44,14 @@ export class Shelf {
       const y = this.offsetY + l * this.levelSpan;
       [ this.depth / 2 - 0.06, -this.depth / 2 + 0.06 ].forEach(z => {
         const bx = new THREE.Mesh(beamGeoX, metal);
-        bx.position.set(0, y, z); beams.add(bx);
+        bx.position.set(0, y, z);
+        beams.add(bx);
       });
       for (let c = 0; c <= this.cols; c++) {
         const x = c * this.slotW - (this.cols * this.slotW) / 2;
         const bz = new THREE.Mesh(beamGeoZ, metal);
-        bz.position.set(x, y, 0); beams.add(bz);
+        bz.position.set(x, y, 0);
+        beams.add(bz);
       }
     }
     this.root.add(beams);
@@ -65,8 +67,17 @@ export class Shelf {
           yPlank,
           0
         );
-        plank.receiveShadow = true;
+        plank.receiveShadow = false;
         this.root.add(plank);
+
+        // Añadir luz puntual para cada slot
+        const slotLight = new THREE.PointLight(0xffffff, 0.4, 3, 2);
+        slotLight.position.set(
+          c * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2,
+          yPlank + 0.5, // 0.5 unidades por encima del estante
+          0
+        );
+        this.root.add(slotLight);
       }
     }
 
