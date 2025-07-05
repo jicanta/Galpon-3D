@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { Forklift }      from './components/Forklift.js';
 import { Printer }       from './components/Printer.js';
 import { Shelf }         from './components/Shelf.js';
+import { Warehouse }     from './components/Warehouse.js';
 import { CameraManager } from './logic/CameraManager.js';
 import { Input }         from './logic/Input.js';
 import { initGUI }       from './gui/Menu.js';
+import { textureManager } from './utils/TextureLoader.js';
 
 /* ------------ escena & renderer ------------ */
 const scene = new THREE.Scene();
@@ -15,7 +17,8 @@ if (globalThis.__renderer__) {
   renderer = globalThis.__renderer__;
 } else {
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.shadowMap.enabled = false;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -41,39 +44,61 @@ const camManager = new CameraManager(renderer, scene);
 
 /* ------------ luces ------------ */
 // Luz ambiental principal
-const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+const ambient = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambient);
 scene.lights.ambient = ambient;
 
-// Luz direccional principal (como el sol)
-const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+// Luz direccional principal (como el sol) - con sombras
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
 dir.position.set(6, 12, 6);
-dir.castShadow = false;
+dir.castShadow = true;
+dir.shadow.mapSize.width = 2048;
+dir.shadow.mapSize.height = 2048;
+dir.shadow.camera.near = 0.5;
+dir.shadow.camera.far = 50;
+dir.shadow.camera.left = -20;
+dir.shadow.camera.right = 20;
+dir.shadow.camera.top = 20;
+dir.shadow.camera.bottom = -20;
 scene.add(dir);
 scene.lights.directional = dir;
 
 // Luz puntual principal
-const pt = new THREE.PointLight(0xfff0e0, 0.5, 50, 2);
+const pt = new THREE.PointLight(0xfff0e0, 0.4, 50, 2);
 pt.position.set(0, 6, -2);
-pt.castShadow = false;
+pt.castShadow = true;
+pt.shadow.mapSize.width = 1024;
+pt.shadow.mapSize.height = 1024;
 scene.add(pt);
 scene.lights.point = pt;
 
 // Luz de relleno
-const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+const fill = new THREE.DirectionalLight(0xffffff, 0.2);
 fill.position.set(-6, 8, -6);
 scene.add(fill);
 scene.lights.fill = fill;
 
-/* ------------ suelo + grid ------------ */
+/* ------------ warehouse and environment ------------ */
+const warehouse = new Warehouse();
+scene.add(warehouse.root);
+
+// Basic floor for areas outside the warehouse
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.8 })
+  new THREE.MeshPhongMaterial({ 
+    color: 0x5a5a5a, 
+    shininess: 30
+  })
 );
-floor.rotation.x = -Math.PI / 2; floor.receiveShadow = false; scene.add(floor);
+floor.rotation.x = -Math.PI / 2; 
+floor.receiveShadow = true; 
+floor.position.y = -0.05; // Further below warehouse floor to avoid z-fighting
+scene.add(floor);
 
 const grid = new THREE.GridHelper(200, 40, 0xffffff, 0x666666);
-grid.position.y = 0.001; grid.material.transparent = true; grid.material.opacity = 0.25;
+grid.position.y = 0.001; 
+grid.material.transparent = true; 
+grid.material.opacity = 0.15;
 scene.add(grid);
 
 /* ------------ objetos ------------ */
@@ -84,7 +109,7 @@ forklift.setEnvironment(printer, shelf);
 camManager.setTargets(printer, shelf);
 
 /* ------------ GUI ------------ */
-initGUI(printer, scene);                
+initGUI(printer, scene, warehouse);                
 
 /* ------------ input ------------ */
 const input = new Input();

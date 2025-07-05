@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { textureManager } from '../utils/TextureLoader.js';
 
 export class Forklift {
 /* ═════════════════════════ constructor ════════════════════════════════════ */
@@ -35,23 +36,45 @@ export class Forklift {
   #buildChassis () {
     const yellow = 0xe8ec6a;
 
-    /* base */
+    /* base with texture */
+    const baseGeometry = new THREE.BoxGeometry(2.4, 0.7, 3.2);
+    // Set proper UV coordinates for the chassis
+    const uvs = baseGeometry.attributes.uv.array;
+    for (let i = 0; i < uvs.length; i += 2) {
+      uvs[i] *= 2; // Scale U coordinate
+      uvs[i + 1] *= 2; // Scale V coordinate
+    }
+    baseGeometry.attributes.uv.needsUpdate = true;
+
     const base = new THREE.Mesh(
-      new THREE.BoxGeometry(2.4, 0.7, 3.2),
-      new THREE.MeshStandardMaterial({ color: yellow })
+      baseGeometry,
+      new THREE.MeshPhongMaterial({ 
+        color: yellow,
+        map: textureManager.getForkliftTexture(),
+        normalMap: textureManager.getForkliftNormalMap(),
+        shininess: 60
+      })
     );
     base.position.y = 0.35;
+    base.castShadow = true;
+    base.receiveShadow = true;
     this.root.add(base);
 
     /* guardabarros (5 cm sobre la rueda) */
     const fenderGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.45, 16, 1, true, 0, Math.PI)
       .rotateZ(Math.PI / 2);
-    const fenderMat = new THREE.MeshStandardMaterial({ color: yellow, side: THREE.DoubleSide });
+    const fenderMat = new THREE.MeshPhongMaterial({ 
+      color: yellow, 
+      side: THREE.DoubleSide,
+      shininess: 60
+    });
     const fY = this.wheelR - 0.3;  // Reducido de 0.05 a 0.02 (2cm sobre la rueda)
     [-1, 1].forEach(s => {
       [ 1.2, -1.2 ].forEach(z => {
         const f = new THREE.Mesh(fenderGeo, fenderMat);
         f.position.set(s * 1.5, fY, z);
+        f.castShadow = true;
+        f.receiveShadow = true;
         this.root.add(f);
       });
     });
@@ -59,79 +82,134 @@ export class Forklift {
     /* asiento y respaldo */
     const seat = new THREE.Mesh(
       new THREE.BoxGeometry(0.7, 0.16, 0.7),
-      new THREE.MeshStandardMaterial({ color: 0xffcf70 })
+      new THREE.MeshPhongMaterial({ color: 0xffcf70, shininess: 40 })
     );
     seat.position.set(0.2, 0.82, -0.7);
+    seat.castShadow = true;
+    seat.receiveShadow = true;
 
     const back = new THREE.Mesh(
       new THREE.BoxGeometry(0.7, 0.8, 0.12),
-      new THREE.MeshStandardMaterial({ color: yellow })
+      new THREE.MeshPhongMaterial({ color: yellow, shininess: 60 })
     );
     back.position.set(0.2, 1.26, -1.05);
+    back.castShadow = true;
+    back.receiveShadow = true;
 
     /* bloque rojo (contrapeso/freno) */
     const block = new THREE.Mesh(
       new THREE.BoxGeometry(0.9, 0.45, 0.45),
-      new THREE.MeshStandardMaterial({ color: 0xb63030 })
+      new THREE.MeshPhongMaterial({ color: 0xb63030, shininess: 80 })
     );
     block.position.set(0.25, 0.55, -0.05);
+    block.castShadow = true;
+    block.receiveShadow = true;
 
     this.root.add(seat, back, block);
   }
 
   #buildWheels () {
-    const tireMat = new THREE.MeshStandardMaterial({ color: 0x6b48c9 });
-    const hubMat  = new THREE.MeshStandardMaterial({ color: 0x26184f });
-
-    const tireGeo = new THREE.TorusGeometry(this.wheelR, 0.12, 14, 22);
-    const hubGeo  = new THREE.CylinderGeometry(
-      this.wheelR * 0.4, this.wheelR * 0.4, 0.5, 20
-    ).rotateZ(Math.PI / 2);
-
-    const x = this.bodyHalfW + this.wheelR;          // ruedas sobresalen 55 cm
+    const x = this.bodyHalfW + this.wheelR;
     const poses = [ [ x,  1.2], [ x, -1.2], [-x,  1.2], [-x, -1.2] ];
 
     this.wheels = poses.map(([px, pz]) => {
-      const g = new THREE.Group();
-      const t = new THREE.Mesh(tireGeo, tireMat); t.rotation.y = Math.PI / 2;
-      const h = new THREE.Mesh(hubGeo, hubMat);
-      g.add(t, h);
-      g.position.set(px, 0, pz);
-      this.root.add(g);
-      return g;
+      const wheelGroup = new THREE.Group();
+      
+      // Create wheel with proper UV mapping for side texture
+      const wheelGeometry = new THREE.CylinderGeometry(this.wheelR, this.wheelR, 0.3, 32);
+      
+      // Override UV mapping to show tire texture on sides properly
+      const uvs = [];
+      const positionAttribute = wheelGeometry.attributes.position;
+      const normalAttribute = wheelGeometry.attributes.normal;
+      
+      for (let i = 0; i < positionAttribute.count; i++) {
+        const x = positionAttribute.getX(i);
+        const y = positionAttribute.getY(i);
+        const z = positionAttribute.getZ(i);
+        
+        const nx = normalAttribute.getX(i);
+        const ny = normalAttribute.getY(i);
+        const nz = normalAttribute.getZ(i);
+        
+        // Check if this vertex is on the cylindrical side (normal pointing horizontally)
+        if (Math.abs(ny) < 0.1) { // Side face
+          // Use cylindrical mapping for side faces
+          const angle = Math.atan2(z, x);
+          const u = (angle + Math.PI) / (2 * Math.PI);
+          const v = (y + 0.15) / 0.3;
+          uvs.push(u, v);
+        } else { // Top/bottom caps
+          // Use radial mapping for caps - this shows the tire rim pattern
+          const u = (x / this.wheelR + 1) * 0.5;
+          const v = (z / this.wheelR + 1) * 0.5;
+          uvs.push(u, v);
+        }
+      }
+      
+      wheelGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      
+      const wheelMaterial = new THREE.MeshPhongMaterial({
+        map: textureManager.getWheelTexture(),
+        shininess: 30
+      });
+      
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+      wheel.rotation.z = Math.PI / 2; // Rotate to horizontal position
+      wheel.castShadow = true;
+      wheel.receiveShadow = true;
+      
+      wheelGroup.add(wheel);
+      wheelGroup.position.set(px, 0, pz);
+      this.root.add(wheelGroup);
+      return wheelGroup;
     });
   }
 
   #buildCabin () {
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const poleMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 200 });
     const poleGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
 
     [-1.0, 0.9].forEach(x => {
-      const pf = new THREE.Mesh(poleGeo, poleMat); pf.position.set(x, 1.05,  0.6);
-      const pb = pf.clone(); pb.position.z = -1.2;
+      const pf = new THREE.Mesh(poleGeo, poleMat); 
+      pf.position.set(x, 1.05,  0.6);
+      pf.castShadow = true;
+      pf.receiveShadow = true;
+      
+      const pb = pf.clone(); 
+      pb.position.z = -1.2;
+      pb.castShadow = true;
+      pb.receiveShadow = true;
+      
       this.root.add(pf, pb);
     });
 
     const roof = new THREE.Mesh(
       new THREE.BoxGeometry(2.2, 0.1, 2),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
+      new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 200 })
     );
     roof.position.set(-0.05, 1.8, -0.3);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
     this.root.add(roof);
 
     const wheel = new THREE.Mesh(
       new THREE.TorusGeometry(0.25, 0.035, 12, 20),
-      new THREE.MeshStandardMaterial({ color: 0x222 })
+      new THREE.MeshPhongMaterial({ color: 0x222, shininess: 150 })
     );
     wheel.rotation.x = -Math.PI / 2;
     wheel.position.set(0.6, 1.0, -0.4);
+    wheel.castShadow = true;
+    wheel.receiveShadow = true;
 
     const column = new THREE.Mesh(
       new THREE.CylinderGeometry(0.025, 0.025, 0.4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x444 })
+      new THREE.MeshPhongMaterial({ color: 0x444, shininess: 100 })
     );
     column.rotation.z = -0.45;
     column.position.set(0.55, 0.8, -0.38);
+    column.castShadow = true;
+    column.receiveShadow = true;
 
     this.root.add(wheel, column);
   }
@@ -142,18 +220,22 @@ export class Forklift {
     this.root.add(this.mast);
 
     const railGeo = new THREE.BoxGeometry(0.12, 6.4, 0.12);
-    const railMat = new THREE.MeshStandardMaterial({ color: 0xcfd4f3 });
+    const railMat = new THREE.MeshPhongMaterial({ color: 0xcfd4f3, shininess: 100 });
     [-0.3, 0.3].forEach(x => {
       const r = new THREE.Mesh(railGeo, railMat);
       r.position.set(x, 3.2, 0);
+      r.castShadow = true;
+      r.receiveShadow = true;
       this.mast.add(r);
     });
 
     const braceGeo = new THREE.BoxGeometry(0.7, 0.12, 0.12);
-    const braceMat = new THREE.MeshStandardMaterial({ color: 0xd64893 });
+    const braceMat = new THREE.MeshPhongMaterial({ color: 0xd64893, shininess: 80 });
     [0.25, 3.2, 6.2].forEach(y => {
       const b = new THREE.Mesh(braceGeo, braceMat);
       b.position.set(0, y, 0.1);
+      b.castShadow = true;
+      b.receiveShadow = true;
       this.mast.add(b);
     });
 
@@ -162,9 +244,11 @@ export class Forklift {
 
     const fork = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 0.12, 1.4),
-      new THREE.MeshStandardMaterial({ color: 0xf4a742 })
+      new THREE.MeshPhongMaterial({ color: 0xf4a742, shininess: 40 })
     );
     fork.position.set(0, 0, 0.7);
+    fork.castShadow = true;
+    fork.receiveShadow = true;
     this.forkGroup.add(fork);
     this.mast.add(this.forkGroup);
   }

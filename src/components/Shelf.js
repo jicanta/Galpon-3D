@@ -16,8 +16,8 @@ export class Shelf {
     this.root = new THREE.Group();
     this.root.position.set(14, 0, -3);
 
-    const metal  = new THREE.MeshStandardMaterial({ color: 0x8a9756, roughness: 0.6 });
-    const plankM = new THREE.MeshStandardMaterial({ color: 0xa0e8ff, roughness: 0.35 });
+    const metal  = new THREE.MeshPhongMaterial({ color: 0x8a9756, shininess: 80 });
+    const plankM = new THREE.MeshPhongMaterial({ color: 0xa0e8ff, shininess: 120 });
 
     /* alturas derivadas */
     const uprH   = this.offsetY + this.levelSpan * this.levels + 0.3; // + tapa
@@ -67,7 +67,8 @@ export class Shelf {
           yPlank,
           0
         );
-        plank.receiveShadow = false;
+        plank.receiveShadow = true;
+        plank.castShadow = true;
         this.root.add(plank);
 
         // Añadir luz puntual para cada slot
