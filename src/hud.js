@@ -25,7 +25,7 @@ class HUD {
       `<b>Forma:</b> ${form}<br>` +
       `<b>Altura:</b> ${height.toFixed(1)} &nbsp; ` +
       `<b>Torsión:</b> ${twist.toFixed(0)}°<br>` +
-      `WASD: mover · Q/E: levantar · G: tomar/dejar · 1-6: cámaras · O/P: zoom`;
+      `WASD: mover · Q/E: levantar · G: tomar/dejar · F: tocar bocina · 1-6: cámaras · 7-9: diseños · O/P: zoom`;
   }
 }
 

@@ -16,7 +16,10 @@ let renderer;
 if (globalThis.__renderer__) {
   renderer = globalThis.__renderer__;
 } else {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ 
+    antialias: false, // Disable for better performance
+    powerPreference: "high-performance"
+  });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -48,27 +51,27 @@ const ambient = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambient);
 scene.lights.ambient = ambient;
 
-// Luz direccional principal (como el sol) - con sombras
+// Luz direccional principal (como el sol) - con sombras optimizadas
 const dir = new THREE.DirectionalLight(0xffffff, 0.8);
 dir.position.set(6, 12, 6);
 dir.castShadow = true;
-dir.shadow.mapSize.width = 2048;
-dir.shadow.mapSize.height = 2048;
+dir.shadow.mapSize.width = 1024; // Reduced from 2048
+dir.shadow.mapSize.height = 1024;
 dir.shadow.camera.near = 0.5;
-dir.shadow.camera.far = 50;
-dir.shadow.camera.left = -20;
-dir.shadow.camera.right = 20;
-dir.shadow.camera.top = 20;
-dir.shadow.camera.bottom = -20;
+dir.shadow.camera.far = 40; // Reduced from 50
+dir.shadow.camera.left = -15; // Reduced from -20
+dir.shadow.camera.right = 15;
+dir.shadow.camera.top = 15;
+dir.shadow.camera.bottom = -15;
 scene.add(dir);
 scene.lights.directional = dir;
 
-// Luz puntual principal
-const pt = new THREE.PointLight(0xfff0e0, 0.4, 50, 2);
+// Luz puntual principal - optimizada
+const pt = new THREE.PointLight(0xfff0e0, 0.4, 30, 2); // Reduced distance
 pt.position.set(0, 6, -2);
 pt.castShadow = true;
-pt.shadow.mapSize.width = 1024;
-pt.shadow.mapSize.height = 1024;
+pt.shadow.mapSize.width = 512; // Reduced from 1024
+pt.shadow.mapSize.height = 512;
 scene.add(pt);
 scene.lights.point = pt;
 
@@ -105,8 +108,9 @@ scene.add(grid);
 const forklift = new Forklift(); scene.add(forklift.root);
 const printer  = new Printer();  scene.add(printer.root);
 const shelf    = new Shelf();    scene.add(shelf.root);
-forklift.setEnvironment(printer, shelf);
+forklift.setEnvironment(printer, shelf, warehouse);
 camManager.setTargets(printer, shelf);
+camManager.setForklift(forklift);
 
 /* ------------ GUI ------------ */
 initGUI(printer, scene, warehouse);                

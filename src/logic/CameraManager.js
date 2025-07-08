@@ -48,6 +48,12 @@ export class CameraManager {
       if (['1','2','3','4','5','6'].includes(e.key)) {
         this.index = Number(e.key);
       }
+      // Handle forklift design switching
+      if (['7','8','9'].includes(e.key)) {
+        if (this.forklift) {
+          this.forklift.switchDesign(Number(e.key) - 7);
+        }
+      }
       // Add O/P key controls for zooming
       if (this.index >= 1 && this.index <= 3) {
         const camera = this.list[this.index];
@@ -74,6 +80,10 @@ export class CameraManager {
   setTargets (printer, shelf) {
     this._printer = printer;
     this._shelf   = shelf;
+  }
+
+  setForklift (forklift) {
+    this.forklift = forklift;
   }
 
   active   () { return this.list[this.index]; }

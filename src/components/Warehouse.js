@@ -9,6 +9,11 @@ export class Warehouse {
     this.roofHeight = 18; // Increased from 12 to 18 for proper warehouse height
     this.depth = 40;
     
+    // Door animation properties
+    this.frontDoors = { left: null, right: null, isOpen: false };
+    this.backDoors = { left: null, right: null, isOpen: false };
+    this.doorOpenAngle = Math.PI / 2; // 90 degrees
+    
     this.#createWarehouseStructure();
     this.#createStructuralBeams();
     this.#createCeilingLights();
@@ -29,9 +34,9 @@ export class Warehouse {
     floor.receiveShadow = true;
     this.root.add(floor);
 
-    // Corrugated metal walls
-    this.#createCorrugatedWall('front', 0, this.wallHeight/2, this.depth/2, 0, 0, 0);
-    this.#createCorrugatedWall('back', 0, this.wallHeight/2, -this.depth/2, 0, Math.PI, 0);
+    // Corrugated metal walls with doors on horizontal walls
+    this.#createWallWithDoor('front', 0, this.wallHeight/2, this.depth/2, 0, 0, 0);
+    this.#createWallWithDoor('back', 0, this.wallHeight/2, -this.depth/2, 0, Math.PI, 0);
     this.#createCorrugatedWall('left', -this.width/2, this.wallHeight/2, 0, 0, Math.PI/2, 0);
     this.#createCorrugatedWall('right', this.width/2, this.wallHeight/2, 0, 0, -Math.PI/2, 0);
 
@@ -52,7 +57,8 @@ export class Warehouse {
       map: textureManager.getWallTexture(),
       normalMap: textureManager.getWallNormalMap(),
       shininess: 80,
-      metalness: 0.3
+      metalness: 0.3,
+      side: THREE.DoubleSide
     });
     
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -71,6 +77,156 @@ export class Warehouse {
     this.root.add(wall);
   }
 
+  #createWallWithDoor(name, x, y, z, rx, ry, rz) {
+    const wallWidth = this.width;
+    const doorWidth = 12; // 12 meter wide door
+    const doorHeight = 6; // 6 meter high door
+    const wallGroup = new THREE.Group();
+    
+    // Create corrugated metal material
+    const wallMaterial = new THREE.MeshPhongMaterial({
+      map: textureManager.getWallTexture(),
+      normalMap: textureManager.getWallNormalMap(),
+      shininess: 80,
+      metalness: 0.3,
+      side: THREE.DoubleSide
+    });
+    
+    // Left wall section
+    const leftWallWidth = (wallWidth - doorWidth) / 2;
+    const leftWallGeometry = new THREE.PlaneGeometry(leftWallWidth, this.wallHeight);
+    const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+    leftWall.position.set(-wallWidth/2 + leftWallWidth/2, 0, 0);
+    leftWall.receiveShadow = true;
+    leftWall.castShadow = true;
+    wallGroup.add(leftWall);
+    
+    // Right wall section
+    const rightWallWidth = (wallWidth - doorWidth) / 2;
+    const rightWallGeometry = new THREE.PlaneGeometry(rightWallWidth, this.wallHeight);
+    const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+    rightWall.position.set(wallWidth/2 - rightWallWidth/2, 0, 0);
+    rightWall.receiveShadow = true;
+    rightWall.castShadow = true;
+    wallGroup.add(rightWall);
+    
+    // Top wall section above door
+    const topWallHeight = this.wallHeight - doorHeight;
+    const topWallGeometry = new THREE.PlaneGeometry(doorWidth, topWallHeight);
+    const topWall = new THREE.Mesh(topWallGeometry, wallMaterial);
+    topWall.position.set(0, doorHeight/2 + topWallHeight/2, 0);
+    topWall.receiveShadow = true;
+    topWall.castShadow = true;
+    wallGroup.add(topWall);
+    
+    // Door frame
+    const frameWidth = 0.3;
+    const frameDepth = 0.25;
+    const frameMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 60
+    });
+    
+    // Door frame sides
+    const frameGeometry = new THREE.BoxGeometry(frameWidth, doorHeight, frameDepth);
+    const leftFrame = new THREE.Mesh(frameGeometry, frameMaterial);
+    leftFrame.position.set(-doorWidth/2 - frameWidth/2, 0, frameDepth/2 + 0.1);
+    leftFrame.castShadow = true;
+    leftFrame.receiveShadow = true;
+    wallGroup.add(leftFrame);
+    
+    const rightFrame = new THREE.Mesh(frameGeometry, frameMaterial);
+    rightFrame.position.set(doorWidth/2 + frameWidth/2, 0, frameDepth/2 + 0.1);
+    rightFrame.castShadow = true;
+    rightFrame.receiveShadow = true;
+    wallGroup.add(rightFrame);
+    
+    // Door frame top
+    const topFrameGeometry = new THREE.BoxGeometry(doorWidth + frameWidth * 2, frameWidth, frameDepth);
+    const topFrame = new THREE.Mesh(topFrameGeometry, frameMaterial);
+    topFrame.position.set(0, doorHeight/2 + frameWidth/2, frameDepth/2 + 0.1);
+    topFrame.castShadow = true;
+    topFrame.receiveShadow = true;
+    wallGroup.add(topFrame);
+    
+    // Door panels (industrial metal doors)
+    const doorPanelWidth = doorWidth / 2;
+    const doorMaterial = new THREE.MeshPhongMaterial({
+      color: 0x2a4a6b,
+      shininess: 80,
+      metalness: 0.4,
+      side: THREE.DoubleSide
+    });
+    
+    const doorPanelGeometry = new THREE.BoxGeometry(doorPanelWidth - 0.2, doorHeight - 0.2, 0.15);
+    
+    // Left door panel with pivot point at the left edge
+    const leftDoor = new THREE.Mesh(doorPanelGeometry, doorMaterial);
+    leftDoor.position.set(doorPanelWidth/2 - 0.1, -this.wallHeight/2 + doorHeight/2 - 0.1, 0.3);
+    leftDoor.castShadow = true;
+    leftDoor.receiveShadow = true;
+    
+    // Create pivot group for left door
+    const leftDoorGroup = new THREE.Group();
+    leftDoorGroup.position.set(-doorWidth/2 + 0.1, 0, 0);
+    leftDoorGroup.add(leftDoor);
+    wallGroup.add(leftDoorGroup);
+    
+    // Right door panel with pivot point at the right edge
+    const rightDoor = new THREE.Mesh(doorPanelGeometry, doorMaterial);
+    rightDoor.position.set(-doorPanelWidth/2 + 0.1, -this.wallHeight/2 + doorHeight/2 - 0.1, 0.3);
+    rightDoor.castShadow = true;
+    rightDoor.receiveShadow = true;
+    
+    // Create pivot group for right door
+    const rightDoorGroup = new THREE.Group();
+    rightDoorGroup.position.set(doorWidth/2 - 0.1, 0, 0);
+    rightDoorGroup.add(rightDoor);
+    wallGroup.add(rightDoorGroup);
+    
+    // Store door references for animation
+    if (name === 'front') {
+      this.frontDoors.left = leftDoorGroup;
+      this.frontDoors.right = rightDoorGroup;
+    } else if (name === 'back') {
+      this.backDoors.left = leftDoorGroup;
+      this.backDoors.right = rightDoorGroup;
+    }
+    
+    // Door handles
+    const handleMaterial = new THREE.MeshPhongMaterial({
+      color: 0x333333,
+      shininess: 100
+    });
+    
+    const handleGeometry = new THREE.BoxGeometry(0.05, 0.8, 0.15);
+    
+    // Left door handle (attached to left door)
+    const leftHandle = new THREE.Mesh(handleGeometry, handleMaterial);
+    leftHandle.position.set(doorPanelWidth/2 - 0.6, -this.wallHeight/2 + doorHeight/2 - 0.1, 0.35);
+    leftHandle.castShadow = true;
+    leftDoorGroup.add(leftHandle);
+    
+    // Right door handle (attached to right door)
+    const rightHandle = new THREE.Mesh(handleGeometry, handleMaterial);
+    rightHandle.position.set(-doorPanelWidth/2 + 0.6, -this.wallHeight/2 + doorHeight/2 - 0.1, 0.35);
+    rightHandle.castShadow = true;
+    rightDoorGroup.add(rightHandle);
+    
+    // Position the wall group
+    wallGroup.position.set(x, y, z);
+    wallGroup.rotation.set(rx, ry, rz);
+    
+    // Add small offset to prevent z-fighting with structural beams
+    if (name === 'front') {
+      wallGroup.position.z -= 0.05;
+    } else if (name === 'back') {
+      wallGroup.position.z += 0.05;
+    }
+    
+    this.root.add(wallGroup);
+  }
+
   #createGableWall(name, x, y, z) {
     // Create triangular gable end
     const gableHeight = this.roofHeight - this.wallHeight;
@@ -84,7 +240,8 @@ export class Warehouse {
     const gableMaterial = new THREE.MeshPhongMaterial({
       map: textureManager.getWallTexture(),
       normalMap: textureManager.getWallNormalMap(),
-      shininess: 80
+      shininess: 80,
+      side: THREE.DoubleSide
     });
     
     const gable = new THREE.Mesh(gableGeometry, gableMaterial);
@@ -240,15 +397,15 @@ export class Warehouse {
       fixtureGroup.position.set(pos[0], 0, pos[1]);
       this.root.add(fixtureGroup);
 
-      // Create actual spotlight
-      const spotlight = new THREE.SpotLight(0xfff4e6, 2.5, 50, Math.PI / 3, 0.4, 2);
+      // Create actual spotlight - optimized
+      const spotlight = new THREE.SpotLight(0xfff4e6, 2.0, 35, Math.PI / 3, 0.4, 2);
       spotlight.position.set(pos[0], roofHeightAtPosition - cableLength - 1.5, pos[1]); // At fixture height
       spotlight.target.position.set(pos[0], 0, pos[1]);
       spotlight.castShadow = true;
-      spotlight.shadow.mapSize.width = 1024;
-      spotlight.shadow.mapSize.height = 1024;
+      spotlight.shadow.mapSize.width = 512; // Reduced from 1024
+      spotlight.shadow.mapSize.height = 512;
       spotlight.shadow.camera.near = 0.5;
-      spotlight.shadow.camera.far = 40;
+      spotlight.shadow.camera.far = 30; // Reduced from 40
       
       this.root.add(spotlight);
       this.root.add(spotlight.target);
@@ -280,5 +437,61 @@ export class Warehouse {
 
   center() {
     return new THREE.Vector3(0, this.wallHeight/2, 0);
+  }
+
+  openDoors() {
+    // Animate doors opening
+    this.#animateDoors(this.frontDoors, true);
+    this.#animateDoors(this.backDoors, true);
+  }
+
+  closeDoors() {
+    // Animate doors closing
+    this.#animateDoors(this.frontDoors, false);
+    this.#animateDoors(this.backDoors, false);
+  }
+
+  toggleDoors() {
+    if (this.frontDoors.isOpen) {
+      this.closeDoors();
+    } else {
+      this.openDoors();
+    }
+  }
+
+  #animateDoors(doorSet, open) {
+    if (!doorSet.left || !doorSet.right) return;
+    
+    const targetAngle = open ? this.doorOpenAngle : 0;
+    const duration = 1000; // 1 second
+    const startTime = performance.now();
+    
+    const startRotationLeft = doorSet.left.rotation.y;
+    const startRotationRight = doorSet.right.rotation.y;
+    
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function for smooth animation
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Left door opens counterclockwise (negative rotation)
+      doorSet.left.rotation.y = startRotationLeft + ((-targetAngle - startRotationLeft) * easeProgress);
+      
+      // Right door opens clockwise (positive rotation)
+      doorSet.right.rotation.y = startRotationRight + ((targetAngle - startRotationRight) * easeProgress);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        doorSet.isOpen = open;
+        if (doorSet === this.frontDoors) {
+          this.backDoors.isOpen = open;
+        }
+      }
+    };
+    
+    requestAnimationFrame(animate);
   }
 }

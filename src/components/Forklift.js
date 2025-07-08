@@ -25,14 +25,48 @@ export class Forklift {
     this.marginX   = 0.15;    // 15 cm laterales
     this.marginZ   = 0.40;    // 40 cm frontal/trasero
 
+    /* --------------- diseño actual --------------- */
+    this.currentDesign = 0; // 0: Classic, 1: Modern, 2: Futuristic
+    this.designComponents = null;
+
     /* construir modelo */
+    this.#buildForklift();
+    
+    /* audio setup */
+    this.#setupAudio();
+  }
+
+/* ══════════════════ construcción visual ══════════════════ */
+  #buildForklift() {
+    // Clear existing components
+    if (this.designComponents) {
+      this.designComponents.forEach(component => {
+        this.root.remove(component);
+      });
+    }
+    
+    // Build based on current design
+    switch (this.currentDesign) {
+      case 0:
+        this.#buildClassicDesign();
+        break;
+      case 1:
+        this.#buildModernDesign();
+        break;
+      case 2:
+        this.#buildFuturisticDesign();
+        break;
+    }
+  }
+
+  #buildClassicDesign() {
+    this.designComponents = [];
     this.#buildChassis();
     this.#buildWheels();
     this.#buildCabin();
     this.#buildMastFork();
   }
 
-/* ══════════════════ construcción visual ══════════════════ */
   #buildChassis () {
     const yellow = 0xe8ec6a;
 
@@ -59,6 +93,7 @@ export class Forklift {
     base.castShadow = true;
     base.receiveShadow = true;
     this.root.add(base);
+    this.designComponents.push(base);
 
     /* guardabarros (5 cm sobre la rueda) */
     const fenderGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.45, 16, 1, true, 0, Math.PI)
@@ -76,6 +111,7 @@ export class Forklift {
         f.castShadow = true;
         f.receiveShadow = true;
         this.root.add(f);
+        this.designComponents.push(f);
       });
     });
 
@@ -106,6 +142,7 @@ export class Forklift {
     block.receiveShadow = true;
 
     this.root.add(seat, back, block);
+    this.designComponents.push(seat, back, block);
   }
 
   #buildWheels () {
@@ -162,6 +199,7 @@ export class Forklift {
       wheelGroup.add(wheel);
       wheelGroup.position.set(px, 0, pz);
       this.root.add(wheelGroup);
+      this.designComponents.push(wheelGroup);
       return wheelGroup;
     });
   }
@@ -182,6 +220,7 @@ export class Forklift {
       pb.receiveShadow = true;
       
       this.root.add(pf, pb);
+      this.designComponents.push(pf, pb);
     });
 
     const roof = new THREE.Mesh(
@@ -192,6 +231,7 @@ export class Forklift {
     roof.castShadow = true;
     roof.receiveShadow = true;
     this.root.add(roof);
+    this.designComponents.push(roof);
 
     const wheel = new THREE.Mesh(
       new THREE.TorusGeometry(0.25, 0.035, 12, 20),
@@ -212,12 +252,14 @@ export class Forklift {
     column.receiveShadow = true;
 
     this.root.add(wheel, column);
+    this.designComponents.push(wheel, column);
   }
 
   #buildMastFork () {
     this.mast = new THREE.Group();
     this.mast.position.set(0, 0.7, 1.6);
     this.root.add(this.mast);
+    this.designComponents.push(this.mast);
 
     const railGeo = new THREE.BoxGeometry(0.12, 6.4, 0.12);
     const railMat = new THREE.MeshPhongMaterial({ color: 0xcfd4f3, shininess: 100 });
@@ -253,6 +295,356 @@ export class Forklift {
     this.mast.add(this.forkGroup);
   }
 
+  #buildModernDesign() {
+    this.designComponents = [];
+    
+    // Modern sleek chassis
+    const modernBlue = 0x2e5ce8;
+    const modernGray = 0x5a6b7d;
+    
+    // Main body - more angular and modern
+    const bodyGeometry = new THREE.BoxGeometry(2.3, 0.8, 3.0);
+    const bodyMaterial = new THREE.MeshPhongMaterial({ 
+      color: modernBlue, 
+      shininess: 120,
+      metalness: 0.3
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.4;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    this.root.add(body);
+    this.designComponents.push(body);
+    
+    // Modern wheels with better design
+    this.#buildModernWheels();
+    
+    // Futuristic cabin
+    this.#buildModernCabin();
+    
+    // Modern mast and fork
+    this.#buildModernMastFork();
+  }
+
+  #buildModernWheels() {
+    const x = this.bodyHalfW + this.wheelR;
+    const poses = [ [ x,  1.2], [ x, -1.2], [-x,  1.2], [-x, -1.2] ];
+    
+    this.wheels = poses.map(([px, pz]) => {
+      const wheelGroup = new THREE.Group();
+      
+      // Modern wheel with metallic finish
+      const wheelGeometry = new THREE.CylinderGeometry(this.wheelR, this.wheelR, 0.35, 32);
+      const wheelMaterial = new THREE.MeshPhongMaterial({
+        color: 0x333333,
+        shininess: 200,
+        metalness: 0.8
+      });
+      
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.castShadow = true;
+      wheel.receiveShadow = true;
+      
+      // Modern rim details
+      const rimGeometry = new THREE.TorusGeometry(0.4, 0.05, 8, 16);
+      const rimMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x666666, 
+        shininess: 300 
+      });
+      const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+      rim.rotation.z = Math.PI / 2;
+      wheel.add(rim);
+      
+      wheelGroup.add(wheel);
+      wheelGroup.position.set(px, 0, pz);
+      this.root.add(wheelGroup);
+      this.designComponents.push(wheelGroup);
+      return wheelGroup;
+    });
+  }
+
+  #buildModernCabin() {
+    const modernGray = 0x5a6b7d;
+    
+    // Modern angular supports
+    const supportGeometry = new THREE.BoxGeometry(0.08, 1.5, 0.08);
+    const supportMaterial = new THREE.MeshPhongMaterial({ 
+      color: modernGray, 
+      shininess: 150 
+    });
+    
+    [-0.9, 0.9].forEach(x => {
+      const support1 = new THREE.Mesh(supportGeometry, supportMaterial);
+      support1.position.set(x, 1.1, 0.6);
+      support1.castShadow = true;
+      support1.receiveShadow = true;
+      
+      const support2 = new THREE.Mesh(supportGeometry, supportMaterial);
+      support2.position.set(x, 1.1, -1.1);
+      support2.castShadow = true;
+      support2.receiveShadow = true;
+      
+      this.root.add(support1, support2);
+      this.designComponents.push(support1, support2);
+    });
+    
+    // Modern glass-like canopy
+    const canopyGeometry = new THREE.BoxGeometry(2.0, 0.08, 1.8);
+    const canopyMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x88ddff, 
+      shininess: 300,
+      transparent: true,
+      opacity: 0.7
+    });
+    const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
+    canopy.position.set(0, 1.9, -0.25);
+    canopy.castShadow = true;
+    canopy.receiveShadow = true;
+    this.root.add(canopy);
+    this.designComponents.push(canopy);
+    
+    // Modern seat
+    const seatGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.8);
+    const seatMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x222222, 
+      shininess: 80 
+    });
+    const seat = new THREE.Mesh(seatGeometry, seatMaterial);
+    seat.position.set(0, 0.9, -0.5);
+    seat.castShadow = true;
+    seat.receiveShadow = true;
+    this.root.add(seat);
+    this.designComponents.push(seat);
+  }
+
+  #buildModernMastFork() {
+    this.mast = new THREE.Group();
+    this.mast.position.set(0, 0.7, 1.6);
+    this.root.add(this.mast);
+    this.designComponents.push(this.mast);
+    
+    // Modern mast with LED strips
+    const mastGeometry = new THREE.BoxGeometry(0.15, 6.4, 0.15);
+    const mastMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x4a5568, 
+      shininess: 150 
+    });
+    
+    [-0.3, 0.3].forEach(x => {
+      const mast = new THREE.Mesh(mastGeometry, mastMaterial);
+      mast.position.set(x, 3.2, 0);
+      mast.castShadow = true;
+      mast.receiveShadow = true;
+      this.mast.add(mast);
+      
+      // LED strip effect
+      const ledGeometry = new THREE.BoxGeometry(0.02, 6.0, 0.02);
+      const ledMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x00ff88, 
+        emissive: 0x004422 
+      });
+      const led = new THREE.Mesh(ledGeometry, ledMaterial);
+      led.position.set(x > 0 ? -0.08 : 0.08, 3.2, 0.08);
+      this.mast.add(led);
+    });
+    
+    // Modern fork
+    this.forkGroup = new THREE.Group();
+    this.forkHeight = 0;
+    
+    const forkGeometry = new THREE.BoxGeometry(1.5, 0.15, 1.5);
+    const forkMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x2e5ce8, 
+      shininess: 100 
+    });
+    const fork = new THREE.Mesh(forkGeometry, forkMaterial);
+    fork.position.set(0, 0, 0.75);
+    fork.castShadow = true;
+    fork.receiveShadow = true;
+    this.forkGroup.add(fork);
+    this.mast.add(this.forkGroup);
+  }
+
+  #buildFuturisticDesign() {
+    this.designComponents = [];
+    
+    // Futuristic chassis with glowing elements
+    const futuristicPurple = 0x8b5cf6;
+    const futuristicCyan = 0x06b6d4;
+    
+    // Main body - very angular and futuristic
+    const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.5, 0.9, 8);
+    const bodyMaterial = new THREE.MeshPhongMaterial({ 
+      color: futuristicPurple, 
+      shininess: 200,
+      metalness: 0.5
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.45;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    this.root.add(body);
+    this.designComponents.push(body);
+    
+    // Futuristic wheels
+    this.#buildFuturisticWheels();
+    
+    // Futuristic cabin
+    this.#buildFuturisticCabin();
+    
+    // Futuristic mast and fork
+    this.#buildFuturisticMastFork();
+  }
+
+  #buildFuturisticWheels() {
+    const x = this.bodyHalfW + this.wheelR;
+    const poses = [ [ x,  1.2], [ x, -1.2], [-x,  1.2], [-x, -1.2] ];
+    
+    this.wheels = poses.map(([px, pz]) => {
+      const wheelGroup = new THREE.Group();
+      
+      // Futuristic glowing wheel
+      const wheelGeometry = new THREE.CylinderGeometry(this.wheelR, this.wheelR, 0.3, 6);
+      const wheelMaterial = new THREE.MeshPhongMaterial({
+        color: 0x222222,
+        shininess: 300,
+        emissive: 0x001122,
+        emissiveIntensity: 0.3
+      });
+      
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.castShadow = true;
+      wheel.receiveShadow = true;
+      
+      // Glowing rim
+      const rimGeometry = new THREE.TorusGeometry(0.45, 0.03, 6, 12);
+      const rimMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x06b6d4, 
+        emissive: 0x06b6d4,
+        emissiveIntensity: 0.5
+      });
+      const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+      rim.rotation.z = Math.PI / 2;
+      wheel.add(rim);
+      
+      wheelGroup.add(wheel);
+      wheelGroup.position.set(px, 0, pz);
+      this.root.add(wheelGroup);
+      this.designComponents.push(wheelGroup);
+      return wheelGroup;
+    });
+  }
+
+  #buildFuturisticCabin() {
+    // Futuristic dome cabin
+    const domeGeometry = new THREE.SphereGeometry(1.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x8b5cf6, 
+      shininess: 300,
+      transparent: true,
+      opacity: 0.8,
+      emissive: 0x2d1b69,
+      emissiveIntensity: 0.2
+    });
+    const dome = new THREE.Mesh(domeGeometry, domeMaterial);
+    dome.position.set(0, 1.2, -0.3);
+    dome.castShadow = true;
+    dome.receiveShadow = true;
+    this.root.add(dome);
+    this.designComponents.push(dome);
+    
+    // Futuristic seat
+    const seatGeometry = new THREE.SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const seatMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x1e293b, 
+      shininess: 100 
+    });
+    const seat = new THREE.Mesh(seatGeometry, seatMaterial);
+    seat.position.set(0, 0.85, -0.5);
+    seat.castShadow = true;
+    seat.receiveShadow = true;
+    this.root.add(seat);
+    this.designComponents.push(seat);
+  }
+
+  #buildFuturisticMastFork() {
+    this.mast = new THREE.Group();
+    this.mast.position.set(0, 0.7, 1.6);
+    this.root.add(this.mast);
+    this.designComponents.push(this.mast);
+    
+    // Futuristic plasma mast
+    const mastGeometry = new THREE.CylinderGeometry(0.08, 0.12, 6.4, 8);
+    const mastMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x8b5cf6, 
+      shininess: 300,
+      emissive: 0x2d1b69,
+      emissiveIntensity: 0.3
+    });
+    
+    [-0.3, 0.3].forEach(x => {
+      const mast = new THREE.Mesh(mastGeometry, mastMaterial);
+      mast.position.set(x, 3.2, 0);
+      mast.castShadow = true;
+      mast.receiveShadow = true;
+      this.mast.add(mast);
+    });
+    
+    // Futuristic fork with energy field
+    this.forkGroup = new THREE.Group();
+    this.forkHeight = 0;
+    
+    const forkGeometry = new THREE.BoxGeometry(1.6, 0.12, 1.6);
+    const forkMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x06b6d4, 
+      shininess: 200,
+      emissive: 0x0e7490,
+      emissiveIntensity: 0.4
+    });
+    const fork = new THREE.Mesh(forkGeometry, forkMaterial);
+    fork.position.set(0, 0, 0.8);
+    fork.castShadow = true;
+    fork.receiveShadow = true;
+    this.forkGroup.add(fork);
+    this.mast.add(this.forkGroup);
+  }
+
+  #setupAudio() {
+    this.audioLoader = new THREE.AudioLoader();
+    this.listener = new THREE.AudioListener();
+    this.hornSound = new THREE.Audio(this.listener);
+    
+    // Add listener to the forklift
+    this.root.add(this.listener);
+    
+    // Load horn sound
+    this.audioLoader.load('/src/audio/car-horn-beep-beep-two-beeps-honk-honk-6188.mp3', (buffer) => {
+      this.hornSound.setBuffer(buffer);
+      this.hornSound.setVolume(0.5);
+    });
+  }
+
+  honk() {
+    if (this.hornSound.isPlaying) {
+      this.hornSound.stop();
+    }
+    this.hornSound.play();
+    
+    // Trigger door opening if warehouse is available
+    if (this.warehouse) {
+      this.warehouse.toggleDoors();
+    }
+  }
+
+  switchDesign(design) {
+    if (design >= 0 && design <= 2 && design !== this.currentDesign) {
+      this.currentDesign = design;
+      this.#buildForklift();
+    }
+  }
+
 /* ═════════════════════ lógica de movimiento ═════════════════════ */
   #tip () {
     return this.forkGroup.localToWorld(new THREE.Vector3(0, 0, 1.4));
@@ -285,7 +677,22 @@ export class Forklift {
 
       // Función para verificar colisión con buffer
       const checkCollision = (pos) => {
-        for (const box of this._obsAABB ?? []) {
+        for (let i = 0; i < (this._obsAABB?.length ?? 0); i++) {
+          const box = this._obsAABB[i];
+          
+          // Check if this is a door collision box and doors are open
+          if (this.warehouse && i >= 2) { // Door collision boxes start from index 2
+            // Check if we're trying to pass through a door opening
+            const doorWidth = 12;
+            const isInDoorArea = Math.abs(pos.x) < doorWidth/2;
+            
+            // If doors are open and we're in the door area, skip collision for door-related boxes
+            if (this.warehouse.frontDoors.isOpen && isInDoorArea) {
+              // Skip collision for front and back door boxes (indices 2-7)
+              if (i >= 2 && i <= 7) continue;
+            }
+          }
+          
           if (pos.x + hx + buffer < box.min.x || pos.x - hx - buffer > box.max.x) continue;
           if (pos.z + hz + buffer < box.min.z || pos.z - hz - buffer > box.max.z) continue;
           return true;
@@ -349,6 +756,12 @@ export class Forklift {
       !this.carried ? this.#pick() : this.#place();
     }
     this._gPrev = input.key('KeyG');
+
+    /* honk con F */
+    if (input.key('KeyF') && !this._fPrev) {
+      this.honk();
+    }
+    this._fPrev = input.key('KeyF');
   }
 
 /* ═════════════════════ pick / place ═════════════════════ */
@@ -392,12 +805,75 @@ export class Forklift {
   }
 
 /* ═════════════════════ entorno estático ═════════════════════ */
-  setEnvironment (printer, shelf) {
+  setEnvironment (printer, shelf, warehouse) {
     this.printer = printer;
     this.shelf   = shelf;
+    this.warehouse = warehouse;
+    
+    // Create collision boxes for existing objects
     [printer.root, shelf.root].forEach(o => o.updateWorldMatrix(true, true));
     this._obsAABB = [printer.root, shelf.root].map(o =>
       new THREE.Box3().setFromObject(o)
     );
+    
+    // Add warehouse wall collision boxes
+    if (warehouse) {
+      const wallThickness = 0.5;
+      const wallHeight = warehouse.wallHeight;
+      const width = warehouse.width;
+      const depth = warehouse.depth;
+      const doorWidth = 12;
+      const doorHeight = 6;
+      
+      // Left wall (solid)
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(-width/2 - wallThickness/2, 0, -depth/2),
+        new THREE.Vector3(-width/2 + wallThickness/2, wallHeight, depth/2)
+      ));
+      
+      // Right wall (solid)
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(width/2 - wallThickness/2, 0, -depth/2),
+        new THREE.Vector3(width/2 + wallThickness/2, wallHeight, depth/2)
+      ));
+      
+      // Front wall parts (with door opening)
+      // Left part of front wall
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(-width/2, 0, depth/2 - wallThickness/2),
+        new THREE.Vector3(-doorWidth/2, wallHeight, depth/2 + wallThickness/2)
+      ));
+      
+      // Right part of front wall
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(doorWidth/2, 0, depth/2 - wallThickness/2),
+        new THREE.Vector3(width/2, wallHeight, depth/2 + wallThickness/2)
+      ));
+      
+      // Top part of front wall (above door)
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(-doorWidth/2, doorHeight, depth/2 - wallThickness/2),
+        new THREE.Vector3(doorWidth/2, wallHeight, depth/2 + wallThickness/2)
+      ));
+      
+      // Back wall parts (with door opening)
+      // Left part of back wall
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(-width/2, 0, -depth/2 - wallThickness/2),
+        new THREE.Vector3(-doorWidth/2, wallHeight, -depth/2 + wallThickness/2)
+      ));
+      
+      // Right part of back wall
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(doorWidth/2, 0, -depth/2 - wallThickness/2),
+        new THREE.Vector3(width/2, wallHeight, -depth/2 + wallThickness/2)
+      ));
+      
+      // Top part of back wall (above door)
+      this._obsAABB.push(new THREE.Box3(
+        new THREE.Vector3(-doorWidth/2, doorHeight, -depth/2 - wallThickness/2),
+        new THREE.Vector3(doorWidth/2, wallHeight, -depth/2 + wallThickness/2)
+      ));
+    }
   }
 }

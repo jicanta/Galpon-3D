@@ -26,6 +26,7 @@ export class Printer {
     this.#buildPedestal();
     this.#buildColumn();
     this.#buildHead();
+    this.#buildPrinterLights();
 
     /* ─ offsets y clipping ─ */
     this.clipPlaneOffset  = 0.0005; // evita z‑fighting con la pieza
@@ -63,42 +64,9 @@ export class Printer {
       material: 'matte',
       speed: 0.5,
       texture: 'Marble White',
-      useTexture: true,
-      surfaceFinish: 'matte',  // plastica, matte, brillante
-      normalPattern: 'Ninguno',
-      normalIntensity: 1.0
+      useTexture: false
     };
 
-    // 4 luces omnidireccionales en la tapa de la impresora con decaimiento lineal
-    this.printerLights = [];
-    const lightPositions = [
-      [1.5, 3, 1.5],
-      [-1.5, 3, 1.5],
-      [1.5, 3, -1.5],
-      [-1.5, 3, -1.5]
-    ];
-
-    lightPositions.forEach((pos, index) => {
-      // Crear el grupo para la luz y su representación visual
-      const lightGroup = new THREE.Group();
-      
-      // Crear la luz omnidireccional
-      const light = new THREE.PointLight(0xffffff, 0.8, 10, 1); // Linear decay
-      light.position.set(0, 0, 0); // Posición relativa al grupo
-      light.castShadow = true;
-      light.shadow.mapSize.width = 512;
-      light.shadow.mapSize.height = 512;
-      lightGroup.add(light);
-      
-      // Crear representación visual de la luz (fixture LED)
-      const lightFixture = this.#createLightFixture();
-      lightGroup.add(lightFixture);
-      
-      // Posicionar el grupo completo
-      lightGroup.position.set(pos[0], pos[1], pos[2]);
-      this.root.add(lightGroup);
-      this.printerLights.push(light);
-    });
   }
 
   #createLightFixture() {
@@ -237,6 +205,56 @@ export class Printer {
     this.root.add(this.head);
   }
 
+  #buildPrinterLights() {
+    // 4 luces omnidireccionales en las cuatro esquinas de la tapa verde
+    this.printerLights = [];
+    this.lightsGroup = new THREE.Group();
+    
+    const headWidth = 0.6;
+    const headDepth = 0.6;
+    const headHeight = 0.4;
+    
+    // Relative positions on the head (local coordinates)
+    const lightPositions = [
+      [headWidth/2, headHeight/2 + 0.05, headDepth/2],     // front-right
+      [-headWidth/2, headHeight/2 + 0.05, headDepth/2],    // front-left
+      [headWidth/2, headHeight/2 + 0.05, -headDepth/2],     // back-right
+      [-headWidth/2, headHeight/2 + 0.05, -headDepth/2]     // back-left
+    ];
+
+    lightPositions.forEach((pos, index) => {
+      // Crear el grupo para la luz y su representación visual
+      const lightGroup = new THREE.Group();
+      
+      // Crear la luz que apunta hacia abajo
+      const light = new THREE.SpotLight(0xffffff, 0.8, 12, Math.PI/4, 0.2, 1);
+      light.position.set(0, 0, 0);
+      
+      // Create target that points downward relative to the light
+      const target = new THREE.Object3D();
+      target.position.set(0, -5, 0);
+      lightGroup.add(target);
+      light.target = target;
+      
+      light.castShadow = true;
+      light.shadow.mapSize.width = 256; // Reduced for performance
+      light.shadow.mapSize.height = 256;
+      lightGroup.add(light);
+      
+      // Crear representación visual de la luz (fixture LED)
+      const lightFixture = this.#createLightFixture();
+      lightGroup.add(lightFixture);
+      
+      // Posicionar el grupo completo
+      lightGroup.position.set(pos[0], pos[1], pos[2]);
+      this.lightsGroup.add(lightGroup);
+      this.printerLights.push(light);
+    });
+    
+    // Attach lights to the head so they move with it
+    this.head.add(this.lightsGroup);
+  }
+
   /* ╔═ generar nueva pieza ═╗ */
   generate () {
     this.#cleanupCurrentObject();
@@ -264,14 +282,14 @@ export class Printer {
       const raw = profiles[form];
       if (!raw) { console.warn(`Perfil ${form} no existe`); return; }
       const maxY = raw.reduce((m, [, y]) => Math.max(m, y), 0);
-      geo = new THREE.LatheGeometry(raw.map(([x, y]) => new THREE.Vector2(Math.abs(x) * S, (y / maxY) * height)), 64);
+      geo = new THREE.LatheGeometry(raw.map(([x, y]) => new THREE.Vector2(Math.abs(x) * S, (y / maxY) * height)), 32); // Reduced from 64
     } else {
       const shape = shapes[form];
       if (!shape) { console.warn(`Shape ${form} no existe`); return; }
 
       geo = new THREE.ExtrudeGeometry(shape, { 
         depth: height, 
-        steps: 140, 
+        steps: 64, // Reduced from 140
         bevelEnabled: false
       });
       geo.scale(S, S, 1);
@@ -294,35 +312,25 @@ export class Printer {
 
 
   #createMaterial() {
-    const { color, material, texture, useTexture, surfaceFinish, normalPattern, normalIntensity } = this.params;
+    const { color, material, texture, useTexture } = this.params;
 
     const textureData = useTexture ? textureManager.getPrintedObjectTextures().find(t => t.name === texture) : null;
-    const normalPatternData = textureManager.getNormalMapPatterns().find(p => p.name === normalPattern);
     
     // Apply UV mapping if using texture
-    if ((textureData || normalPatternData?.normal) && this.currentGeometry) {
+    if (textureData && this.currentGeometry) {
       this.#applyUVMapping(this.currentGeometry, textureData);
-    }
-    
-    // Determine which normal map to use
-    let normalMap = null;
-    if (normalPatternData && normalPatternData.normal) {
-      normalMap = normalPatternData.normal;
-    } else if (textureData && textureData.normal) {
-      normalMap = textureData.normal;
     }
     
     // Create material properties
     const matProps = {
       color: useTexture && textureData ? 0xffffff : color,
       map: useTexture && textureData ? textureData.diffuse : null,
-      normalMap: normalMap,
-      normalScale: normalMap ? new THREE.Vector2(normalIntensity, normalIntensity) : undefined,
+      normalMap: useTexture && textureData && textureData.normal ? textureData.normal : null,
       transparent: material === 'glass',
       opacity: material === 'glass' ? 0.5 : 1,
       clippingPlanes: [this.clipPlane],
       clipShadows: true,
-      ...this.#getSurfaceFinishProperties(surfaceFinish, textureData)
+      ...this.#getSurfaceFinishProperties(material)
     };
     
     this.currentMaterial = new THREE.MeshPhongMaterial(matProps);
@@ -356,22 +364,16 @@ export class Printer {
     }
   }
 
-  #getSurfaceFinishProperties(surfaceFinish, textureData) {
+  #getSurfaceFinishProperties(material) {
     const finishProps = {
-      'plastica': { shininess: 5, specular: 0x111111 },
       'matte': { shininess: 20, specular: 0x222222 },
-      'brillante': { shininess: 100, specular: 0x666666 }
+      'shiny': { shininess: 100, specular: 0x666666 },
+      'metallic': { shininess: 150, specular: 0x888888 },
+      'plastic': { shininess: 80, specular: 0x444444 },
+      'glass': { shininess: 200, specular: 0xffffff }
     };
     
-    if (finishProps[surfaceFinish]) {
-      return finishProps[surfaceFinish];
-    }
-    
-    // Default or texture-based properties
-    return {
-      shininess: textureData ? Math.max(20, (1 - textureData.roughness) * 200) : 50,
-      specular: textureData ? (textureData.metalness > 0.5 ? 0x666666 : 0x222222) : 0x111111
-    };
+    return finishProps[material] || { shininess: 50, specular: 0x333333 };
   }
 
   #createMesh() {
