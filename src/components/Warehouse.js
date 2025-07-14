@@ -17,6 +17,7 @@ export class Warehouse {
     this.#createWarehouseStructure();
     this.#createStructuralBeams();
     this.#createCeilingLights();
+    this.#createWarehouseDetails();
   }
 
   #createWarehouseStructure() {
@@ -432,6 +433,106 @@ export class Warehouse {
       light.angle = params.angle;
       light.penumbra = params.penumbra;
       light.decay = params.decay;
+    });
+  }
+
+  #createWarehouseDetails() {
+    // Agregar ventiladores de techo
+    const fanPositions = [
+      [-15, this.roofHeight - 2, 0],
+      [15, this.roofHeight - 2, 0],
+      [0, this.roofHeight - 2, 10],
+      [0, this.roofHeight - 2, -10]
+    ];
+    
+    fanPositions.forEach(pos => {
+      const fanGroup = new THREE.Group();
+      
+      // Motor del ventilador
+      const motorGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.4, 16);
+      const motorMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x444444, 
+        shininess: 100 
+      });
+      const motor = new THREE.Mesh(motorGeometry, motorMaterial);
+      motor.castShadow = true;
+      fanGroup.add(motor);
+      
+      // Aspas del ventilador
+      for (let i = 0; i < 4; i++) {
+        const bladeGeometry = new THREE.BoxGeometry(0.1, 0.02, 2.5);
+        const bladeMaterial = new THREE.MeshPhongMaterial({ 
+          color: 0x666666, 
+          shininess: 80 
+        });
+        const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+        blade.position.y = -0.15;
+        blade.rotation.y = (i * Math.PI) / 2;
+        blade.castShadow = true;
+        fanGroup.add(blade);
+      }
+      
+      fanGroup.position.set(pos[0], pos[1], pos[2]);
+      this.root.add(fanGroup);
+    });
+    
+    // Agregar cajas de herramientas en las paredes
+    const toolboxPositions = [
+      [-this.width/2 + 1, 2, -5],
+      [-this.width/2 + 1, 2, 5],
+      [this.width/2 - 1, 2, -5],
+      [this.width/2 - 1, 2, 5]
+    ];
+    
+    toolboxPositions.forEach(pos => {
+      const toolboxGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.3);
+      const toolboxMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xff4444, 
+        shininess: 100 
+      });
+      const toolbox = new THREE.Mesh(toolboxGeometry, toolboxMaterial);
+      toolbox.position.set(pos[0], pos[1], pos[2]);
+      toolbox.castShadow = true;
+      toolbox.receiveShadow = true;
+      this.root.add(toolbox);
+      
+      // Manijas de la caja
+      const handleGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+      const handleMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+      const handle1 = new THREE.Mesh(handleGeometry, handleMaterial);
+      handle1.position.set(pos[0] - 0.3, pos[1], pos[2] + 0.2);
+      const handle2 = new THREE.Mesh(handleGeometry, handleMaterial);
+      handle2.position.set(pos[0] + 0.3, pos[1], pos[2] + 0.2);
+      this.root.add(handle1, handle2);
+    });
+    
+    // Agregar extintores
+    const extinguisherPositions = [
+      [-10, 1.5, this.depth/2 - 0.5],
+      [10, 1.5, this.depth/2 - 0.5],
+      [-10, 1.5, -this.depth/2 + 0.5],
+      [10, 1.5, -this.depth/2 + 0.5]
+    ];
+    
+    extinguisherPositions.forEach(pos => {
+      const extGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 16);
+      const extMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xff0000, 
+        shininess: 150 
+      });
+      const extinguisher = new THREE.Mesh(extGeometry, extMaterial);
+      extinguisher.position.set(pos[0], pos[1], pos[2]);
+      extinguisher.castShadow = true;
+      extinguisher.receiveShadow = true;
+      this.root.add(extinguisher);
+      
+      // Manguera del extintor
+      const hoseGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8);
+      const hoseMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+      const hose = new THREE.Mesh(hoseGeometry, hoseMaterial);
+      hose.position.set(pos[0] + 0.1, pos[1] - 0.2, pos[2]);
+      hose.rotation.z = Math.PI / 6;
+      this.root.add(hose);
     });
   }
 

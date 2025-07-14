@@ -130,7 +130,7 @@ export class Printer {
 
   /* ╔═ chasis estático ═╗ */
   #buildPedestal () {
-    // Base with reflection map (cubemap or spherical)
+    // Base with reflection map (cubemap or spherical) - color original
     const baseMaterial = new THREE.MeshPhongMaterial({ 
       color: 0xf0f0f0,
       shininess: 100,
@@ -321,7 +321,7 @@ export class Printer {
       this.#applyUVMapping(this.currentGeometry, textureData);
     }
     
-    // Create material properties
+    // Create material properties with enhanced texture and material support
     const matProps = {
       color: useTexture && textureData ? 0xffffff : color,
       map: useTexture && textureData ? textureData.diffuse : null,
@@ -330,8 +330,15 @@ export class Printer {
       opacity: material === 'glass' ? 0.5 : 1,
       clippingPlanes: [this.clipPlane],
       clipShadows: true,
+      side: THREE.DoubleSide, // Para mejor visualización
       ...this.#getSurfaceFinishProperties(material)
     };
+    
+    // Si usamos textura, aplicar propiedades adicionales del material
+    if (useTexture && textureData) {
+      matProps.metalness = textureData.metalness || 0;
+      matProps.roughness = textureData.roughness || 0.5;
+    }
     
     this.currentMaterial = new THREE.MeshPhongMaterial(matProps);
   }
@@ -366,14 +373,36 @@ export class Printer {
 
   #getSurfaceFinishProperties(material) {
     const finishProps = {
-      'matte': { shininess: 20, specular: 0x222222 },
-      'shiny': { shininess: 100, specular: 0x666666 },
-      'metallic': { shininess: 150, specular: 0x888888 },
-      'plastic': { shininess: 80, specular: 0x444444 },
-      'glass': { shininess: 200, specular: 0xffffff }
+      'matte': { 
+        shininess: 20, 
+        specular: 0x222222,
+        reflectivity: 0.1
+      },
+      'shiny': { 
+        shininess: 120, 
+        specular: 0x888888,
+        reflectivity: 0.4
+      },
+      'metallic': { 
+        shininess: 200, 
+        specular: 0xcccccc,
+        reflectivity: 0.8,
+        envMap: textureManager.getGreyRoomCubemap()
+      },
+      'plastic': { 
+        shininess: 100, 
+        specular: 0x666666,
+        reflectivity: 0.3
+      },
+      'glass': { 
+        shininess: 300, 
+        specular: 0xffffff,
+        reflectivity: 0.9,
+        envMap: textureManager.getGreyRoomCubemap()
+      }
     };
     
-    return finishProps[material] || { shininess: 50, specular: 0x333333 };
+    return finishProps[material] || { shininess: 50, specular: 0x333333, reflectivity: 0.2 };
   }
 
   #createMesh() {

@@ -85,12 +85,21 @@ scene.lights.fill = fill;
 const warehouse = new Warehouse();
 scene.add(warehouse.root);
 
-// Basic floor for areas outside the warehouse
+// Basic floor for areas outside the warehouse with stone texture
+const floorTexture = new THREE.TextureLoader().load("maps/StoneTilesFloor01_1K_BaseColor.png");
+floorTexture.repeat.x = 40;
+floorTexture.repeat.y = 40;
+floorTexture.wrapS = THREE.RepeatWrapping;
+floorTexture.wrapT = THREE.RepeatWrapping;
+
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
   new THREE.MeshPhongMaterial({ 
-    color: 0x5a5a5a, 
-    shininess: 30
+    color: 0xFFFFFF,
+    specular: 0x444444,
+    shininess: 60,
+    map: floorTexture,
+    side: THREE.DoubleSide
   })
 );
 floor.rotation.x = -Math.PI / 2; 

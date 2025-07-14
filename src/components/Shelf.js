@@ -79,6 +79,35 @@ export class Shelf {
           0
         );
         this.root.add(slotLight);
+        
+        // Agregar plaquitas identificadoras en cada slot
+        const labelGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.02);
+        const labelMaterial = new THREE.MeshPhongMaterial({ 
+          color: 0xffffcc, 
+          shininess: 100 
+        });
+        const label = new THREE.Mesh(labelGeometry, labelMaterial);
+        label.position.set(
+          c * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2,
+          yPlank + 0.15,
+          this.depth / 2 - 0.05
+        );
+        label.castShadow = true;
+        label.receiveShadow = true;
+        this.root.add(label);
+        
+        // Texto en la plaquita (usando un pequeño plano con color)
+        const textGeometry = new THREE.BoxGeometry(0.25, 0.05, 0.01);
+        const textMaterial = new THREE.MeshPhongMaterial({ 
+          color: 0x222222 
+        });
+        const text = new THREE.Mesh(textGeometry, textMaterial);
+        text.position.set(
+          c * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2,
+          yPlank + 0.15,
+          this.depth / 2 - 0.04
+        );
+        this.root.add(text);
       }
     }
 
@@ -136,7 +165,9 @@ export class Shelf {
       if (!(child instanceof THREE.Mesh) || 
           child === this.highlight || 
           child.material.color.getHex() === 0xa0e8ff || // Skip planks (light blue)
-          child.material.color.getHex() === 0x8a9756) { // Skip metal beams (greenish)
+          child.material.color.getHex() === 0x8a9756 || // Skip metal beams (greenish)
+          child.material.color.getHex() === 0xffffcc || // Skip labels
+          child.material.color.getHex() === 0x222222) { // Skip text
         continue;
       }
       
@@ -157,7 +188,10 @@ export class Shelf {
     // Find the slot that contains this object
     const objPos = new THREE.Vector3();
     obj.getWorldPosition(objPos);
-    objPos.applyMatrix4(this.root.matrixWorld.invert());
+    
+    // Convert to local coordinates without modifying the original matrix
+    const invertedMatrix = this.root.matrixWorld.clone().invert();
+    objPos.applyMatrix4(invertedMatrix);
     
     for (const slot of this.freeSlots) {
       if (slot.occupied) {
@@ -165,7 +199,7 @@ export class Shelf {
         const y = this.offsetY + slot.level * this.levelSpan + this.vGap;
         const slotPos = new THREE.Vector3(x, y, 0);
         
-        if (objPos.distanceTo(slotPos) < 0.5) { // If object is close to this slot
+        if (objPos.distanceTo(slotPos) < 1.0) { // Increased tolerance
           slot.occupied = false;
           this.root.remove(obj);
           return true;
@@ -182,11 +216,26 @@ export class Shelf {
 
     const x = slot.col * this.slotW - (this.cols * this.slotW) / 2 + this.slotW / 2;
     const yBase = this.offsetY + slot.level * this.levelSpan + this.vGap;
+    
+    // Reset object transform before placing
     obj.position.set(x, yBase, 0);
     obj.rotation.set(0, 0, 0);
     obj.scale.set(1, 1, 1);
+    
+    // Clear any clipping planes that might be active
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(mat => {
+          mat.clippingPlanes = null;
+          mat.needsUpdate = true;
+        });
+      } else {
+        obj.material.clippingPlanes = null;
+        obj.material.needsUpdate = true;
+      }
+    }
+    
     this.root.add(obj);
-
     slot.occupied = true;
     this.highlight.visible = false;
     return true;
@@ -204,7 +253,8 @@ export class Shelf {
       // Find which slot contains this object
       const objPos = new THREE.Vector3();
       object.getWorldPosition(objPos);
-      objPos.applyMatrix4(this.root.matrixWorld.invert());
+      const invertedMatrix = this.root.matrixWorld.clone().invert();
+      objPos.applyMatrix4(invertedMatrix);
       
       for (const slot of this.freeSlots) {
         if (slot.occupied) {
@@ -212,7 +262,7 @@ export class Shelf {
           const y = this.offsetY + slot.level * this.levelSpan + this.vGap;
           const slotPos = new THREE.Vector3(x, y, 0);
           
-          if (objPos.distanceTo(slotPos) < 0.5) {
+          if (objPos.distanceTo(slotPos) < 1.0) { // Increased tolerance
             const yMid = this.offsetY + slot.level * this.levelSpan + this.levelSpan / 2;
             this.highlight.position.set(x, yMid, 0);
             this.highlight.visible = true;

@@ -70,22 +70,11 @@ export class Forklift {
   #buildChassis () {
     const yellow = 0xe8ec6a;
 
-    /* base with texture */
-    const baseGeometry = new THREE.BoxGeometry(2.4, 0.7, 3.2);
-    // Set proper UV coordinates for the chassis
-    const uvs = baseGeometry.attributes.uv.array;
-    for (let i = 0; i < uvs.length; i += 2) {
-      uvs[i] *= 2; // Scale U coordinate
-      uvs[i + 1] *= 2; // Scale V coordinate
-    }
-    baseGeometry.attributes.uv.needsUpdate = true;
-
+    /* base amarillo sin texturas para mantener color original */
     const base = new THREE.Mesh(
-      baseGeometry,
+      new THREE.BoxGeometry(2.4, 0.7, 3.2),
       new THREE.MeshPhongMaterial({ 
         color: yellow,
-        map: textureManager.getForkliftTexture(),
-        normalMap: textureManager.getForkliftNormalMap(),
         shininess: 60
       })
     );
@@ -141,8 +130,76 @@ export class Forklift {
     block.castShadow = true;
     block.receiveShadow = true;
 
-    this.root.add(seat, back, block);
-    this.designComponents.push(seat, back, block);
+    // Agregar luces frontales del forklift
+    const headlightGeometry = new THREE.SphereGeometry(0.08, 16, 8);
+    const headlightMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xffffcc, 
+      emissive: 0xffffaa,
+      emissiveIntensity: 0.3,
+      shininess: 200 
+    });
+    
+    const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+    leftHeadlight.position.set(-0.8, 1.2, 1.5);
+    leftHeadlight.castShadow = true;
+    
+    const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+    rightHeadlight.position.set(0.8, 1.2, 1.5);
+    rightHeadlight.castShadow = true;
+    
+    // Agregar antena
+    const antennaGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 8);
+    const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x333333, shininess: 100 });
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(-0.8, 1.8, -0.5);
+    antenna.castShadow = true;
+    
+    // Esfera en la punta de la antena
+    const antennaTipGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const antennaTipMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+    const antennaTip = new THREE.Mesh(antennaTipGeometry, antennaTipMaterial);
+    antennaTip.position.set(-0.8, 2.4, -0.5);
+    antennaTip.castShadow = true;
+    
+    // Espejos retrovisores
+    const mirrorGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.02, 16);
+    const mirrorMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x888888, 
+      shininess: 300,
+      reflectivity: 0.8
+    });
+    
+    const leftMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+    leftMirror.position.set(-1.0, 1.5, 0.3);
+    leftMirror.rotation.z = Math.PI / 2;
+    leftMirror.castShadow = true;
+    
+    const rightMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+    rightMirror.position.set(1.0, 1.5, 0.3);
+    rightMirror.rotation.z = Math.PI / 2;
+    rightMirror.castShadow = true;
+    
+    // Panel de instrumentos
+    const dashGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.08);
+    const dashMaterial = new THREE.MeshPhongMaterial({ color: 0x222222, shininess: 50 });
+    const dashboard = new THREE.Mesh(dashGeometry, dashMaterial);
+    dashboard.position.set(0.5, 1.1, -0.2);
+    dashboard.castShadow = true;
+    
+    // Pantalla LCD en el dashboard
+    const screenGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.01);
+    const screenMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x00ff88, 
+      emissive: 0x004422,
+      emissiveIntensity: 0.5
+    });
+    const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+    screen.position.set(0.5, 1.1, -0.15);
+    
+    this.root.add(seat, back, block, leftHeadlight, rightHeadlight, antenna, antennaTip, 
+                  leftMirror, rightMirror, dashboard, screen);
+    this.designComponents.push(seat, back, block, leftHeadlight, rightHeadlight, antenna, 
+                              antennaTip, leftMirror, rightMirror, dashboard, screen);
   }
 
   #buildWheels () {
