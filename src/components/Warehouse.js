@@ -58,7 +58,6 @@ export class Warehouse {
       map: textureManager.getWallTexture(),
       normalMap: textureManager.getWallNormalMap(),
       shininess: 80,
-      metalness: 0.3,
       side: THREE.DoubleSide
     });
     
@@ -89,7 +88,6 @@ export class Warehouse {
       map: textureManager.getWallTexture(),
       normalMap: textureManager.getWallNormalMap(),
       shininess: 80,
-      metalness: 0.3,
       side: THREE.DoubleSide
     });
     
@@ -155,7 +153,6 @@ export class Warehouse {
     const doorMaterial = new THREE.MeshPhongMaterial({
       color: 0x2a4a6b,
       shininess: 80,
-      metalness: 0.4,
       side: THREE.DoubleSide
     });
     
@@ -363,8 +360,7 @@ export class Warehouse {
       const housingGeometry = new THREE.CylinderGeometry(1.2, 1.5, 0.8, 16);
       const housingMaterial = new THREE.MeshPhongMaterial({
         color: 0x2a2a2a,
-        shininess: 100,
-        metalness: 0.8
+        shininess: 100
       });
       const housing = new THREE.Mesh(housingGeometry, housingMaterial);
       housing.position.y = roofHeightAtPosition - cableLength - 1.0; // Hang from cable
@@ -375,8 +371,7 @@ export class Warehouse {
       const reflectorGeometry = new THREE.CylinderGeometry(1.0, 1.3, 0.1, 16);
       const reflectorMaterial = new THREE.MeshPhongMaterial({
         color: 0xffffff,
-        shininess: 200,
-        emissive: 0x222222
+        shininess: 200
       });
       const reflector = new THREE.Mesh(reflectorGeometry, reflectorMaterial);
       reflector.position.y = roofHeightAtPosition - cableLength - 1.3; // Inside housing
@@ -437,45 +432,6 @@ export class Warehouse {
   }
 
   #createWarehouseDetails() {
-    // Agregar ventiladores de techo
-    const fanPositions = [
-      [-15, this.roofHeight - 2, 0],
-      [15, this.roofHeight - 2, 0],
-      [0, this.roofHeight - 2, 10],
-      [0, this.roofHeight - 2, -10]
-    ];
-    
-    fanPositions.forEach(pos => {
-      const fanGroup = new THREE.Group();
-      
-      // Motor del ventilador
-      const motorGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.4, 16);
-      const motorMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x444444, 
-        shininess: 100 
-      });
-      const motor = new THREE.Mesh(motorGeometry, motorMaterial);
-      motor.castShadow = true;
-      fanGroup.add(motor);
-      
-      // Aspas del ventilador
-      for (let i = 0; i < 4; i++) {
-        const bladeGeometry = new THREE.BoxGeometry(0.1, 0.02, 2.5);
-        const bladeMaterial = new THREE.MeshPhongMaterial({ 
-          color: 0x666666, 
-          shininess: 80 
-        });
-        const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-        blade.position.y = -0.15;
-        blade.rotation.y = (i * Math.PI) / 2;
-        blade.castShadow = true;
-        fanGroup.add(blade);
-      }
-      
-      fanGroup.position.set(pos[0], pos[1], pos[2]);
-      this.root.add(fanGroup);
-    });
-    
     // Agregar cajas de herramientas en las paredes
     const toolboxPositions = [
       [-this.width/2 + 1, 2, -5],

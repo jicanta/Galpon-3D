@@ -67,6 +67,9 @@ export class Printer {
       useTexture: false
     };
 
+    // Generate initial object so there's always something to grab
+    this.generate();
+
   }
 
   #createLightFixture() {
@@ -88,9 +91,7 @@ export class Printer {
     const domeMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffcc,
       transparent: true,
-      opacity: 0.9,
-      emissive: 0xffffaa,
-      emissiveIntensity: 0.3
+      opacity: 0.9
     });
     const dome = new THREE.Mesh(domeGeometry, domeMaterial);
     dome.position.y = 0;
@@ -193,8 +194,7 @@ export class Printer {
       new THREE.TorusGeometry(0.35, 0.025, 8, 20),
       new THREE.MeshPhongMaterial({ 
         color: 0x00ffea, 
-        shininess: 100,
-        emissive: 0x002244
+        shininess: 100
       })
     );
     ring.rotation.x = Math.PI / 2;
@@ -336,8 +336,15 @@ export class Printer {
     
     // Si usamos textura, aplicar propiedades adicionales del material
     if (useTexture && textureData) {
-      matProps.metalness = textureData.metalness || 0;
-      matProps.roughness = textureData.roughness || 0.5;
+      // Note: metalness and roughness are only available in MeshStandardMaterial
+      // For MeshPhongMaterial, we'll use shininess and reflectivity instead
+      if (textureData.metalness > 0.5) {
+        matProps.shininess = 200;
+        matProps.reflectivity = 0.8;
+      } else if (textureData.roughness > 0.5) {
+        matProps.shininess = 30;
+        matProps.reflectivity = 0.2;
+      }
     }
     
     this.currentMaterial = new THREE.MeshPhongMaterial(matProps);

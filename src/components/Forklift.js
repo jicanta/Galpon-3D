@@ -134,8 +134,6 @@ export class Forklift {
     const headlightGeometry = new THREE.SphereGeometry(0.08, 16, 8);
     const headlightMaterial = new THREE.MeshPhongMaterial({ 
       color: 0xffffcc, 
-      emissive: 0xffffaa,
-      emissiveIntensity: 0.3,
       shininess: 200 
     });
     
@@ -190,8 +188,7 @@ export class Forklift {
     const screenGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.01);
     const screenMaterial = new THREE.MeshPhongMaterial({ 
       color: 0x00ff88, 
-      emissive: 0x004422,
-      emissiveIntensity: 0.5
+      shininess: 200
     });
     const screen = new THREE.Mesh(screenGeometry, screenMaterial);
     screen.position.set(0.5, 1.1, -0.15);
@@ -498,8 +495,7 @@ export class Forklift {
       // LED strip effect
       const ledGeometry = new THREE.BoxGeometry(0.02, 6.0, 0.02);
       const ledMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff88, 
-        emissive: 0x004422 
+        color: 0x00ff88
       });
       const led = new THREE.Mesh(ledGeometry, ledMaterial);
       led.position.set(x > 0 ? -0.08 : 0.08, 3.2, 0.08);
@@ -534,8 +530,7 @@ export class Forklift {
     const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.5, 0.9, 8);
     const bodyMaterial = new THREE.MeshPhongMaterial({ 
       color: futuristicPurple, 
-      shininess: 200,
-      metalness: 0.5
+      shininess: 200
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.45;
@@ -565,9 +560,7 @@ export class Forklift {
       const wheelGeometry = new THREE.CylinderGeometry(this.wheelR, this.wheelR, 0.3, 6);
       const wheelMaterial = new THREE.MeshPhongMaterial({
         color: 0x222222,
-        shininess: 300,
-        emissive: 0x001122,
-        emissiveIntensity: 0.3
+        shininess: 300
       });
       
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
@@ -578,9 +571,7 @@ export class Forklift {
       // Glowing rim
       const rimGeometry = new THREE.TorusGeometry(0.45, 0.03, 6, 12);
       const rimMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x06b6d4, 
-        emissive: 0x06b6d4,
-        emissiveIntensity: 0.5
+        color: 0x06b6d4
       });
       const rim = new THREE.Mesh(rimGeometry, rimMaterial);
       rim.rotation.z = Math.PI / 2;
@@ -601,9 +592,7 @@ export class Forklift {
       color: 0x8b5cf6, 
       shininess: 300,
       transparent: true,
-      opacity: 0.8,
-      emissive: 0x2d1b69,
-      emissiveIntensity: 0.2
+      opacity: 0.8
     });
     const dome = new THREE.Mesh(domeGeometry, domeMaterial);
     dome.position.set(0, 1.2, -0.3);
@@ -636,9 +625,7 @@ export class Forklift {
     const mastGeometry = new THREE.CylinderGeometry(0.08, 0.12, 6.4, 8);
     const mastMaterial = new THREE.MeshPhongMaterial({ 
       color: 0x8b5cf6, 
-      shininess: 300,
-      emissive: 0x2d1b69,
-      emissiveIntensity: 0.3
+      shininess: 300
     });
     
     [-0.3, 0.3].forEach(x => {
@@ -656,9 +643,7 @@ export class Forklift {
     const forkGeometry = new THREE.BoxGeometry(1.6, 0.12, 1.6);
     const forkMaterial = new THREE.MeshPhongMaterial({ 
       color: 0x06b6d4, 
-      shininess: 200,
-      emissive: 0x0e7490,
-      emissiveIntensity: 0.4
+      shininess: 200
     });
     const fork = new THREE.Mesh(forkGeometry, forkMaterial);
     fork.position.set(0, 0, 0.8);
